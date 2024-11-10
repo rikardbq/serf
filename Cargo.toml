@@ -1,0 +1,25 @@
+[package]
+name = "sqlite_server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "sqlite_server_srv"
+path = "src/bin/sqlite_server_srv.rs"
+
+[[bin]]
+name = "sqlite_server_cli"
+path = "src/bin/sqlite_server_cli.rs"
+
+[dependencies]
+actix-web = "4.9.0"
+base16ct = { version = "0.2.0", features = ["alloc"] }
+chrono = "0.4.38"
+jsonwebtoken = "9.3.0"
+notify = "7.0.0"
+serde = { version = "1.0.214", features = ["derive"] }
+serde_json = "1.0.132"
+sha2 = "0.10.8"
+sqlx = { version = "0.8.2", features = [ "sqlite", "runtime-tokio" ] }
