@@ -32,7 +32,7 @@ Note: Will probably error since the db files I have tested with aren't included.
             - cURL
                 -
                 ```
-                curl --location 'localhost:8080/verify_token' \
+                curl --location 'localhost:8080/decode_token' \
                 --header 'u_: b1a74559bea16b1521205f95f07a25ea2f09f49eb4e265fa6057036d1dff7c22' \
                 --header 'Content-Type: application/json' \
                 --data '{
