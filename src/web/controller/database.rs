@@ -5,11 +5,11 @@ use std::{
 
 use crate::{
     core::{
-        db::{execute_query, fetch_all_as_json, AppliedQuery, QueryArg},
+        db::{execute_query, fetch_all_as_json, AppliedQuery},
         state::{AppState, Usr},
     },
     web::{
-        jwt::{decode_token, Dat},
+        jwt::{decode_token, generate_claims, generate_token, Dat, Sub},
         request::{RequestBody, ResponseResult},
     },
 };
@@ -135,7 +135,6 @@ async fn handle_database_post(
     // get the usr data
     let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
     let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-
     let user_entry_for_id = &usr[header_u_];
 
     let database = path.into_inner();
@@ -168,12 +167,32 @@ async fn handle_database_post(
     };
     let claims = decoded_token.claims;
     let dat: Dat = serde_json::from_str(&claims.dat).unwrap();
+
     println!("dat={:?}", dat);
+    match claims.sub {
+        Sub::E_ => {
+            return HttpResponse::Ok().json(
+                ResponseResult::new().payload(
+                    execute_query(AppliedQuery::new(&dat.base_query), &db)
+                        .await
+                        .unwrap()
+                        .rows_affected(),
+                ),
+            );
+        }
+        Sub::F_ => {
+            let result = fetch_all_as_json(AppliedQuery::new(&dat.base_query), &db)
+                .await
+                .unwrap();
+            let claims = generate_claims(serde_json::to_string(&result).unwrap(), Sub::D_);
+            let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
 
-    let result = fetch_all_as_json(AppliedQuery::new(&dat.base_query), &db)
-        .await
-        .unwrap();
-    println!("{:?}", serde_json::to_string(&result).unwrap());
-
-    HttpResponse::Ok().json(ResponseResult::new().payload(result))
+            println!("{:?}", serde_json::to_string(&result).unwrap());
+            return HttpResponse::Ok().json(ResponseResult::new().payload(token));
+        }
+        _ => {
+            return HttpResponse::NotAcceptable()
+                .json(ResponseResult::new().error("ERROR=InvalidSubject"));
+        }
+    };
 }

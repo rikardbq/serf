@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RequestBody {
@@ -7,27 +6,27 @@ pub struct RequestBody {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct ResponseResult<'a> {
-    payload: Option<Vec<JsonValue>>,
-    error: Option<&'a str>,
+pub struct ResponseResult<T> {
+    payload: Option<T>,
+    error: Option<T>,
 }
 
-impl<'a> ResponseResult<'a> {
-    pub fn new() -> ResponseResult<'a> {
+impl<T> ResponseResult<T> {
+    pub fn new() -> ResponseResult<T> {
         ResponseResult {
             payload: None,
             error: None,
         }
     }
 
-    pub fn payload(self, payload: Vec<JsonValue>) -> Self {
+    pub fn payload(self, payload: T) -> Self {
         ResponseResult {
             payload: Some(payload),
             ..self
         }
     }
 
-    pub fn error(self, error: &'a str) -> Self {
+    pub fn error(self, error: T) -> Self {
         ResponseResult {
             error: Some(error),
             ..self

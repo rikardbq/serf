@@ -15,19 +15,26 @@ pub struct Dat<'a> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub enum Sub {
+    E_,
+    F_,
+    D_,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Claims {
     pub iss: String,
-    pub sub: String,
+    pub sub: Sub,
     // pub aud: String,
     pub dat: String,
     pub iat: usize,
     pub exp: usize,
 }
 
-pub fn generate_claims(content: String) -> Claims {
+pub fn generate_claims(content: String, subject: Sub) -> Claims {
     let claims = Claims {
         iss: String::from("s_"),
-        sub: String::from("d_"),
+        sub: subject,
         // aud: String::from("c_"),
         dat: content,
         iat: chrono::Utc::now().timestamp() as usize,

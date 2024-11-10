@@ -6,7 +6,7 @@ use std::{
 use crate::{
     core::state::{AppState, Usr},
     web::{
-        jwt::{decode_token, generate_token, verify_token, Claims},
+        jwt::{decode_token, generate_claims, generate_token, verify_token, Sub},
         request::{RequestBody, ResponseResult},
     },
 };
@@ -19,7 +19,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(handle_decode_token);
 }
 
-#[post("/generate_token}")]
+#[post("/jwt/generate_token")]
 async fn handle_generate_token(
     req: HttpRequest,
     data: web::Data<AppState<SqlitePool>>,
@@ -36,23 +36,23 @@ async fn handle_generate_token(
     // get the usr data
     let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
     let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-
     let user_entry_for_id = &usr[header_u_];
-    
-    let claims = Claims {
-        iss: String::from("s_"),
-        sub: String::from("d_"),
-        dat: req_body,
-        iat: chrono::Utc::now().timestamp() as usize,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as usize,
-    };
 
+    // let claims = Claims {
+    //     iss: String::from("s_"),
+    //     sub: String::from("d_"),
+    //     dat: req_body,
+    //     iat: chrono::Utc::now().timestamp() as usize,
+    //     exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as usize,
+    // };
+
+    let claims = generate_claims(req_body, Sub::F_);
     let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
 
     return HttpResponse::Ok().body(token);
 }
 
-#[post("/verify_token")]
+#[post("/jwt/verify_token")]
 pub async fn handle_verify_token(
     req: HttpRequest,
     data: web::Data<AppState<SqlitePool>>,
@@ -69,7 +69,6 @@ pub async fn handle_verify_token(
     // get the usr data
     let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
     let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-
     let user_entry_for_id = &usr[header_u_];
 
     let token = &req_body.payload;
@@ -79,7 +78,7 @@ pub async fn handle_verify_token(
     HttpResponse::Ok().body(is_token_valid.to_string())
 }
 
-#[post("/decode_token")]
+#[post("/jwt/decode_token")]
 pub async fn handle_decode_token(
     req: HttpRequest,
     data: web::Data<AppState<SqlitePool>>,
@@ -96,7 +95,6 @@ pub async fn handle_decode_token(
     // get the usr data
     let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
     let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-
     let user_entry_for_id = &usr[header_u_];
 
     let token = &req_body.payload;
