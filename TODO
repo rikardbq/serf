@@ -1,8 +1,13 @@
 [x] Add core functionality for write and read to db
 [x] fix the query function to allow more generic argument lists / partial application of query params
-[] Handle different types of calls, I.E inserts vs fetches, etc (pass a subject in the token?)
+[x] Handle different types of calls, I.E inserts vs fetches, etc (pass a subject in the token?)
 [x] Add web controllers in web lib
 [-] setup rest endpoints for actual use (needs more work later, prelim. done)
-[] start work on the CLI for adding users to user management db
+[-] start work on the CLI for adding users to user management db
+    - basic idea is to manage users with add, remove, modify commands (may have to use some library to manage sub-commanding)
+    - same pattern would apply for managing DB's and user access to DB's (not final)
+        - ```sqlite_server_cli add user -u rikardbq -p somepass```
+        - ```sqlite_server_cli remove user -u rikardbq```
+        - ```sqlite_server_cli modify user chpass -u rikardbq -op oldpass -np newpass```
 [] handle updates to the user management db so that the Arc Mutex handle gets the latest user hashmap
     - use "notify" crate to listen on the db file change?

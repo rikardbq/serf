@@ -9,7 +9,7 @@ use crate::{
         state::{AppState, Usr},
     },
     web::{
-        jwt::{decode_token, generate_claims, generate_token, Dat, Sub},
+        jwt::{decode_token, generate_claims, generate_token, RequestQuery, Sub},
         request::{RequestBody, ResponseResult},
     },
 };
@@ -166,7 +166,7 @@ async fn handle_database_post(
         }
     };
     let claims = decoded_token.claims;
-    let dat: Dat = serde_json::from_str(&claims.dat).unwrap();
+    let dat: RequestQuery = serde_json::from_str(&claims.dat).unwrap();
 
     println!("dat={:?}", dat);
     match claims.sub {

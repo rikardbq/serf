@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::core::db::QueryArg;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct Dat<'a> {
+pub struct RequestQuery<'a> {
     pub base_query: String,
     #[serde(borrow)]
     pub parts: Vec<QueryArg<'a>>,
