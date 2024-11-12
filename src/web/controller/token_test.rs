@@ -1,7 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, PoisonError},
-};
+use std::sync::Arc;
+
+use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
     core::state::{AppState, Usr},
@@ -10,8 +9,6 @@ use crate::{
         request::{RequestBody, ResponseResult},
     },
 };
-use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
-use sqlx::SqlitePool;
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(handle_generate_token);
@@ -22,7 +19,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
 #[post("/jwt/generate_token")]
 async fn handle_generate_token(
     req: HttpRequest,
-    data: web::Data<AppState<SqlitePool>>,
+    data: web::Data<AppState>,
     req_body: String,
 ) -> impl Responder {
     let header_u_ = match req.headers().get("u_") {
@@ -34,17 +31,15 @@ async fn handle_generate_token(
     };
 
     // get the usr data
-    let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
-    let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-    let user_entry_for_id = &usr[header_u_];
-
-    // let claims = Claims {
-    //     iss: String::from("s_"),
-    //     sub: String::from("d_"),
-    //     dat: req_body,
-    //     iat: chrono::Utc::now().timestamp() as usize,
-    //     exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as usize,
-    // };
+    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
+    let usr = usr_clone.pin();
+    let user_entry_for_id = match usr.get(header_u_) {
+        Some(u) => u,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ResponseResult::new().error("ERROR=UnknownUser"))
+        }
+    };
 
     let claims = generate_claims(req_body, Sub::F_);
     let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
@@ -55,7 +50,7 @@ async fn handle_generate_token(
 #[post("/jwt/verify_token")]
 pub async fn handle_verify_token(
     req: HttpRequest,
-    data: web::Data<AppState<SqlitePool>>,
+    data: web::Data<AppState>,
     req_body: web::Json<RequestBody>,
 ) -> impl Responder {
     let header_u_ = match req.headers().get("u_") {
@@ -67,9 +62,15 @@ pub async fn handle_verify_token(
     };
 
     // get the usr data
-    let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
-    let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-    let user_entry_for_id = &usr[header_u_];
+    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
+    let usr = usr_clone.pin();
+    let user_entry_for_id = match usr.get(header_u_) {
+        Some(u) => u,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ResponseResult::new().error("ERROR=UnknownUser"))
+        }
+    };
 
     let token = &req_body.payload;
     let is_token_valid = verify_token(token, &user_entry_for_id.up_hash).unwrap();
@@ -81,7 +82,7 @@ pub async fn handle_verify_token(
 #[post("/jwt/decode_token")]
 pub async fn handle_decode_token(
     req: HttpRequest,
-    data: web::Data<AppState<SqlitePool>>,
+    data: web::Data<AppState>,
     req_body: web::Json<RequestBody>,
 ) -> impl Responder {
     let header_u_ = match req.headers().get("u_") {
@@ -93,9 +94,15 @@ pub async fn handle_decode_token(
     };
 
     // get the usr data
-    let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
-    let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-    let user_entry_for_id = &usr[header_u_];
+    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
+    let usr = usr_clone.pin();
+    let user_entry_for_id = match usr.get(header_u_) {
+        Some(u) => u,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ResponseResult::new().error("ERROR=UnknownUser"))
+        }
+    };
 
     let token = &req_body.payload;
     let decoded_token = decode_token(token, &user_entry_for_id.up_hash).unwrap();

@@ -1,7 +1,7 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, PoisonError},
-};
+use std::sync::Arc;
+
+use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
+use sqlx::SqlitePool;
 
 use crate::{
     core::{
@@ -13,9 +13,6 @@ use crate::{
         request::{RequestBody, ResponseResult},
     },
 };
-use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
-use sqlx::SqlitePool;
-
 /*
 save for later testing
 
@@ -120,7 +117,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
 #[post("/{database}")]
 async fn handle_database_post(
     req: HttpRequest,
-    data: web::Data<AppState<SqlitePool>>,
+    data: web::Data<AppState>,
     path: web::Path<String>,
     req_body: web::Json<RequestBody>,
 ) -> impl Responder {
@@ -132,17 +129,19 @@ async fn handle_database_post(
         }
     };
 
-    // get the usr data
-    let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
-    let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-    let user_entry_for_id = &usr[header_u_];
-
+    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
+    let usr = usr_clone.pin();
+    let user_entry_for_id = match usr.get(header_u_) {
+        Some(u) => u,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ResponseResult::new().error("ERROR=UnknownUser"))
+        }
+    };
     let database = path.into_inner();
-    let database_connections_clone: Arc<Mutex<HashMap<String, SqlitePool>>> =
+    let database_connections_clone: Arc<papaya::HashMap<String, SqlitePool>> =
         Arc::clone(&data.database_connections);
-    let mut database_connections = database_connections_clone
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner);
+    let database_connections = database_connections_clone.pin();
 
     if !database_connections.contains_key(&database) {
         println!(
@@ -155,8 +154,8 @@ async fn handle_database_post(
             panic!();
         }
     }
-    let db = &database_connections[&database];
 
+    let db = database_connections.get(&database).unwrap();
     let token = &req_body.payload;
     let decoded_token = match decode_token(&token, &user_entry_for_id.up_hash) {
         Ok(dec) => dec,
