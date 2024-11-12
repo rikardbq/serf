@@ -1,5 +1,4 @@
 use core::str;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 
@@ -10,42 +9,45 @@ pub const USR_CONFIG_LOCATION: &str = "./config_/usr_";
 pub fn usr_config_buffer(location: &str) -> Vec<u8> {
     let mut buffer = Vec::<u8>::new();
 
-    let _ = (
-        match File::open(location) {
-            Ok(f) => {
-                println!("Using usr config from {}", location);
-                f
-            }
-            Err(err) => {
-                eprintln!("Error reading usr config with ERROR={}", err);
-                panic!()
-            }
+    let _ = (match File::open(location) {
+        Ok(f) => {
+            println!("Using usr config from {}", location);
+            f
         }
-    ).read_to_end(&mut buffer);
+        Err(err) => {
+            eprintln!("Error reading usr config with ERROR={}", err);
+            panic!()
+        }
+    })
+    .read_to_end(&mut buffer);
 
     buffer
 }
 
-pub fn parse_usr_config(config_buffer: Vec<u8>) -> HashMap<String, Usr> {
+pub fn parse_usr_config(config_buffer: Vec<u8>) -> papaya::HashMap<String, Usr> {
     let usr_config = str::from_utf8(&config_buffer).unwrap();
     let usr_entries: Vec<&str> = usr_config.split("\n").collect();
-    let mut usr_map = HashMap::new();
+    let usr_map = papaya::HashMap::new();
+    let usr_map_ref = usr_map.pin();
 
-    usr_entries.iter().for_each(|x| {
+    usr_entries.iter().for_each(move |x| {
         let t: Vec<&str> = x.split("|").collect();
         let access_entries: Vec<&str> = t[3].split(",").collect();
-        let mut access_map = HashMap::new();
+        let mut access_map = std::collections::HashMap::new();
 
         access_entries.iter().for_each(|y| {
             let u: Vec<&str> = y.split(":").collect();
-            let _ = &mut access_map.insert(String::from(u[0]), u[1].parse::<u8>().unwrap());
+            let _ = access_map.insert(String::from(u[0]), u[1].parse::<u8>().unwrap());
         });
 
-        let _ = &mut usr_map.insert(String::from(t[1]), Usr {
-            u: String::from(t[0]),
-            up_hash: String::from(t[2]),
-            db_ar: access_map,
-        });
+        let _ = usr_map_ref.insert(
+            String::from(t[1]),
+            Usr {
+                u: String::from(t[0]),
+                up_hash: String::from(t[2]),
+                db_ar: access_map,
+            },
+        );
     });
 
     usr_map
@@ -78,9 +80,9 @@ pub fn parse_usr_config(config_buffer: Vec<u8>) -> HashMap<String, Usr> {
 
     ---
 
-    simply call the usr_ db "./<project_root>/r_/usr_.db" 
+    simply call the usr_ db "./<project_root>/r_/usr_.db"
     anything else lives in a different folder alltogether "./<project_root>/p_/<whatever>.db"
 
-    
+
 
 */

@@ -1,14 +1,15 @@
-use std::sync::{ Arc, Mutex };
-use std::collections::HashMap;
+use std::sync::Arc;
 
-pub struct AppState<T> {
-    pub database_connections: Arc<Mutex<HashMap<String, T>>>,
-    pub usr: Arc<Mutex<HashMap<String, Usr>>>,
+use sqlx::SqlitePool;
+
+pub struct AppState {
+    pub database_connections: Arc<papaya::HashMap<String, SqlitePool>>,
+    pub usr: Arc<papaya::HashMap<String, Usr>>,
 }
 
 #[derive(Debug)]
 pub struct Usr {
     pub u: String,
     pub up_hash: String,
-    pub db_ar: HashMap<String, u8>,
+    pub db_ar: std::collections::HashMap<String, u8>,
 }
