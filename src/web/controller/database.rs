@@ -1,7 +1,8 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, PoisonError},
-};
+use std::sync::Arc;
+use std::time::Duration;
+
+use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
+use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 
 use crate::{
     core::{
@@ -13,9 +14,6 @@ use crate::{
         request::{RequestBody, ResponseResult},
     },
 };
-use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
-use sqlx::SqlitePool;
-
 /*
 save for later testing
 
@@ -120,7 +118,7 @@ pub fn init(cfg: &mut web::ServiceConfig) {
 #[post("/{database}")]
 async fn handle_database_post(
     req: HttpRequest,
-    data: web::Data<AppState<SqlitePool>>,
+    data: web::Data<AppState>,
     path: web::Path<String>,
     req_body: web::Json<RequestBody>,
 ) -> impl Responder {
@@ -132,31 +130,38 @@ async fn handle_database_post(
         }
     };
 
-    // get the usr data
-    let usr_clone: Arc<Mutex<HashMap<String, Usr>>> = Arc::clone(&data.usr);
-    let usr = usr_clone.lock().unwrap_or_else(PoisonError::into_inner);
-    let user_entry_for_id = &usr[header_u_];
-
+    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
+    let usr = usr_clone.pin();
+    let user_entry_for_id = match usr.get(header_u_) {
+        Some(u) => u,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ResponseResult::new().error("ERROR=UnknownUser"))
+        }
+    };
     let database = path.into_inner();
-    let database_connections_clone: Arc<Mutex<HashMap<String, SqlitePool>>> =
+    let database_connections_clone: Arc<papaya::HashMap<String, SqlitePool>> =
         Arc::clone(&data.database_connections);
-    let mut database_connections = database_connections_clone
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner);
+    let database_connections = database_connections_clone.pin();
 
     if !database_connections.contains_key(&database) {
         println!(
             "database connection is not opened, trying to open database {}",
             database
         );
-        if let Ok(pool) = SqlitePool::connect(format!("sqlite:{}.db", database).as_str()).await {
+        if let Ok(pool) = SqlitePoolOptions::new()
+            .max_connections(32)
+            .idle_timeout(Duration::from_secs(3600))
+            .connect(&format!("sqlite:{}.db", database))
+            .await
+        {
             database_connections.insert(database.clone(), pool);
         } else {
             panic!();
         }
     }
-    let db = &database_connections[&database];
 
+    let db = database_connections.get(&database).unwrap();
     let token = &req_body.payload;
     let decoded_token = match decode_token(&token, &user_entry_for_id.up_hash) {
         Ok(dec) => dec,
@@ -168,31 +173,30 @@ async fn handle_database_post(
     let claims = decoded_token.claims;
     let dat: RequestQuery = serde_json::from_str(&claims.dat).unwrap();
 
-    println!("dat={:?}", dat);
-    match claims.sub {
-        Sub::E_ => {
-            return HttpResponse::Ok().json(
-                ResponseResult::new().payload(
-                    execute_query(AppliedQuery::new(&dat.base_query), &db)
-                        .await
-                        .unwrap()
-                        .rows_affected(),
-                ),
-            );
-        }
+    // println!("dat={:?}", dat);
+    let res = match claims.sub {
+        Sub::E_ => HttpResponse::Ok().json(
+            ResponseResult::new().payload(
+                execute_query(AppliedQuery::new(&dat.base_query), db)
+                    .await
+                    .unwrap()
+                    .rows_affected(),
+            ),
+        ),
         Sub::F_ => {
-            let result = fetch_all_as_json(AppliedQuery::new(&dat.base_query), &db)
+            let result = fetch_all_as_json(AppliedQuery::new(&dat.base_query), db)
                 .await
                 .unwrap();
             let claims = generate_claims(serde_json::to_string(&result).unwrap(), Sub::D_);
             let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
 
-            println!("{:?}", serde_json::to_string(&result).unwrap());
-            return HttpResponse::Ok().json(ResponseResult::new().payload(token));
+            // println!("{:?}", serde_json::to_string(&result).unwrap());
+            HttpResponse::Ok().json(ResponseResult::new().payload(token))
         }
         _ => {
-            return HttpResponse::NotAcceptable()
-                .json(ResponseResult::new().error("ERROR=InvalidSubject"));
+            HttpResponse::NotAcceptable().json(ResponseResult::new().error("ERROR=InvalidSubject"))
         }
     };
+
+    res
 }
