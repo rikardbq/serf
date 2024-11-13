@@ -303,9 +303,9 @@ fn map_sqliterow_col_to_json_value<'a>(
     }
 
     match type_info {
-        "INTEGER" => do_try_get::<i32>(&row, col_name),
-        "REAL" => do_try_get::<f32>(&row, col_name),
-        "TEXT" => do_try_get::<String>(&row, col_name),
+        "INTEGER" => do_try_get::<i32>(row, col_name),
+        "REAL" => do_try_get::<f32>(row, col_name),
+        "TEXT" => do_try_get::<String>(row, col_name),
         _ => json!(null),
     }
 }
