@@ -1,33 +1,111 @@
 use core::str;
 use std::env;
-
-use std::fs::OpenOptions;
-use std::io::prelude::*;
+use std::fs::create_dir_all;
+use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use sqlx::{migrate::MigrateDatabase, Sqlite};
+use sqlite_server::core::db::{execute_query, fetch_all_as_json, AppliedQuery, QueryArg};
+use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 
 pub const USR_CONFIG_LOCATION: &str = "./config_/usr_";
+
+/*
+ToDo:
+    migrate the database and tables creation
+        + initial user create to build.rs
+
+
+*/
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     println!("IM THE CLI !");
+
+    let path_hash = base16ct::lower::encode_string(&Sha256::digest("cfg_root_db_path".as_bytes()));
+    let root_db_path_string = format!("./config_/{}", path_hash);
+    let root_db_path = Path::new(&root_db_path_string);
+    if !root_db_path.exists() {
+        let _ = create_dir_all(root_db_path);
+    }
+    let root_db = format!("{}/{}.db", &root_db_path_string, path_hash);
+    if !Sqlite::database_exists(&root_db).await.unwrap_or(false) {
+        println!("INIT ");
+
+        match Sqlite::create_database(&root_db).await {
+            Ok(_) => {
+                println!("CREATE root database DONE");
+                let pool = SqlitePool::connect(&format!("sqlite:{}", root_db))
+                    .await
+                    .unwrap();
+
+                // CREATE users
+                match execute_query(
+                    AppliedQuery::new(
+                        r#"
+                        CREATE TABLE IF NOT EXISTS users (
+                            id INTEGER PRIMARY KEY NOT NULL, 
+                            username TEXT NOT NULL UNIQUE, 
+                            username_hash TEXT NOT NULL, 
+                            username_password_hash TEXT NOT NULL
+                        );
+                        "#,
+                    ),
+                    &pool,
+                )
+                .await
+                {
+                    Ok(_) => {
+                        println!("CREATE users table DONE");
+
+                        // CREATE database accesses
+                        // access_right can contain, or at least handle 1, 2 or 3 as value
+                        // all other values will be seen as non-functioning
+                        match execute_query(
+                            AppliedQuery::new(
+                                r#"
+                                CREATE TABLE IF NOT EXISTS users_database_access (
+                                    id INTEGER PRIMARY KEY NOT NULL,
+                                    database TEXT NOT NULL,
+                                    access_right INTEGER NOT NULL DEFAULT 1,
+                                    user INTEGER NOT NULL,
+                                    FOREIGN KEY (user)
+                                    REFERENCES users (username_hash) 
+                                        ON UPDATE CASCADE
+                                        ON DELETE CASCADE
+                                );
+                                "#,
+                            ),
+                            &pool,
+                        )
+                        .await
+                        {
+                            Ok(_) => println!("CREATE users_database_access table DONE"),
+                            Err(err) => panic!("CREATE users_database_access table ERROR={}", err),
+                        }
+                    }
+                    Err(err) => panic!("CREATE users table ERROR={}", err),
+                }
+            }
+            Err(error) => panic!("CREATE DB ERROR={}", error),
+        }
+    }
+
     let args: Vec<String> = env::args().collect();
 
-    
     if args.len() > 1 {
         let mut u = "";
         let mut p = "";
         let mut db = "";
-        
+
         let command = args[1].as_str();
         let sub_command = args[2].as_str();
-        for i in 2..args.len() {
+        for i in 3..args.len() - 1 {
             let flag = args[i].as_str();
             let flag_val = args[i + 1].as_str();
+            println!("FLAG= {}\nFLAG_VAL= {}", flag, flag_val);
             if command.eq("add") {
                 if sub_command.eq("user") {
-                    let _ = match args[i].as_str() {
+                    let _ = match flag {
                         "-u" => {
                             if !flag_val.starts_with("-") {
                                 u = flag_val;
@@ -47,25 +125,51 @@ async fn main() -> std::io::Result<()> {
                         let u_res = base16ct::lower::encode_string(&u_hash);
                         let up_res = base16ct::lower::encode_string(&up_hash);
 
-                        println!("{}|{:?}|{:?}|", u, u_res, up_res);
+                        println!("{}|{:?}|{:?}", u, u_res, up_res);
 
-                        let mut file = OpenOptions::new()
-                            .write(true)
-                            .append(true)
-                            .open(USR_CONFIG_LOCATION)
+                        let pool = SqlitePool::connect(&format!("sqlite:{}", root_db))
+                            .await
                             .unwrap();
 
-                        // if let Err(e) = writeln!(file, "A new line!") {
-                        //     eprintln!("Couldn't write to file: {}", e);
-                        // }
+                        match execute_query(
+                            AppliedQuery::new(
+                                r#"
+                                INSERT OR IGNORE INTO users(
+                                    username,
+                                    username_hash,
+                                    username_password_hash
+                                ) VALUES(?, ?, ?);
+                                "#,
+                            )
+                            .with_args(vec![
+                                QueryArg::String(u),
+                                QueryArg::String(&u_res),
+                                QueryArg::String(&up_res),
+                            ]),
+                            &pool,
+                        )
+                        .await
+                        {
+                            Ok(_) => println!("INSERT OK"),
+                            Err(err) => panic!("ERROR={}", err),
+                        };
 
-                        file.write_all(format!("\n{}|{}|{}|", u, u_res, up_res).as_bytes())
-                            .unwrap();
+                        let test = fetch_all_as_json(
+                            AppliedQuery::new(
+                                r#"
+                                SELECT * FROM users where username = ?
+                                "#,
+                            )
+                            .with_args(vec![QueryArg::String("rikardbq")]),
+                            &pool,
+                        )
+                        .await
+                        .unwrap();
                     }
                 }
             } else if flag.eq("create") {
                 if sub_command.eq("database") {
-                    let _ = match args[i].as_str() {
+                    let _ = match flag {
                         "-db" => {
                             if !flag_val.starts_with("-") {
                                 db = flag_val;
