@@ -10,7 +10,7 @@ use crate::{
         state::{AppState, Usr},
     },
     web::{
-        jwt::{decode_token, generate_claims, generate_token, RequestQuery, Sub},
+        jwt::{decode_token, generate_claims, generate_token, Iss, RequestQuery, Sub},
         request::{RequestBody, ResponseResult},
     },
 };
@@ -150,14 +150,17 @@ async fn handle_database_post(
             database
         );
         if let Ok(pool) = SqlitePoolOptions::new()
-            .max_connections(32)
-            .idle_timeout(Duration::from_secs(3600))
+            .max_connections(data.db_max_conn)
+            .idle_timeout(Duration::from_secs(data.db_max_idle_time))
             .connect(&format!("sqlite:{}.db", database))
             .await
         {
             database_connections.insert(database.clone(), pool);
         } else {
-            panic!();
+            return HttpResponse::NotFound().json(
+                ResponseResult::new().error(&format!("ERROR=Database not found for {}", database)),
+            );
+            // panic!("ERROR=No database found for {}", database);
         }
     }
 
@@ -171,26 +174,34 @@ async fn handle_database_post(
         }
     };
     let claims = decoded_token.claims;
-    let dat: RequestQuery = serde_json::from_str(&claims.dat).unwrap();
 
-    // println!("dat={:?}", dat);
+    if claims.iss != Iss::C_ {
+        return HttpResponse::NotAcceptable()
+            .json(ResponseResult::new().error("ERROR=InvalidIssuer"));
+    }
+
+    let dat: RequestQuery = serde_json::from_str(&claims.dat).unwrap();
     let res = match claims.sub {
-        Sub::E_ => HttpResponse::Ok().json(
-            ResponseResult::new().payload(
-                execute_query(AppliedQuery::new(&dat.base_query), db)
-                    .await
-                    .unwrap()
-                    .rows_affected(),
-            ),
-        ),
-        Sub::F_ => {
-            let result = fetch_all_as_json(AppliedQuery::new(&dat.base_query), db)
+        Sub::M_ => {
+            let result = execute_query(AppliedQuery::new(&dat.base_query).with_args(dat.parts), db)
                 .await
-                .unwrap();
+                .unwrap()
+                .rows_affected();
             let claims = generate_claims(serde_json::to_string(&result).unwrap(), Sub::D_);
             let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
 
-            // println!("{:?}", serde_json::to_string(&result).unwrap());
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            HttpResponse::Ok().json(ResponseResult::new().payload(token))
+        }
+        Sub::F_ => {
+            let result =
+                fetch_all_as_json(AppliedQuery::new(&dat.base_query).with_args(dat.parts), db)
+                    .await
+                    .unwrap();
+            let claims = generate_claims(serde_json::to_string(&result).unwrap(), Sub::D_);
+            let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
+
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
             HttpResponse::Ok().json(ResponseResult::new().payload(token))
         }
         _ => {

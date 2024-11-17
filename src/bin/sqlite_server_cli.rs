@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use sqlite_server::core::db::{execute_query, fetch_all_as_json, AppliedQuery, QueryArg};
 use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 
-pub const USR_CONFIG_LOCATION: &str = "./config_/usr_";
+include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
 /*
 ToDo:
@@ -20,6 +20,7 @@ ToDo:
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     println!("IM THE CLI !");
+    println!("{}", message());
 
     let path_hash = base16ct::lower::encode_string(&Sha256::digest("cfg_root_db_path".as_bytes()));
     let root_db_path_string = format!("./config_/{}", path_hash);
@@ -153,18 +154,6 @@ async fn main() -> std::io::Result<()> {
                             Ok(_) => println!("INSERT OK"),
                             Err(err) => panic!("ERROR={}", err),
                         };
-
-                        let test = fetch_all_as_json(
-                            AppliedQuery::new(
-                                r#"
-                                SELECT * FROM users where username = ?
-                                "#,
-                            )
-                            .with_args(vec![QueryArg::String("rikardbq")]),
-                            &pool,
-                        )
-                        .await
-                        .unwrap();
                     }
                 }
             } else if flag.eq("create") {

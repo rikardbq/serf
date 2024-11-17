@@ -5,6 +5,8 @@ use sqlx::SqlitePool;
 pub struct AppState {
     pub database_connections: Arc<papaya::HashMap<String, SqlitePool>>,
     pub usr: Arc<papaya::HashMap<String, Usr>>,
+    pub db_max_conn: u32,
+    pub db_max_idle_time: u64,
 }
 
 #[derive(Debug)]

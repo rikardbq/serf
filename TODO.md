@@ -3,7 +3,7 @@
 - [x] Handle different types of calls, I.E inserts vs fetches, etc (pass a subject in the token?)
 - [x] Add web controllers in web lib
 - [-] setup rest endpoints for actual use)
-    - [x] "{database}" path more or less done
+    - [x] "{database}" more or less done
     - [] "{database}/migrate" (for running migrations)
         - scripts and management of these will have to be done on consumer side unless sqlx migrate has some feature for keeping track. Possibly both are needed to avoid calling the server when not needed.
 - [-] start work on the CLI for adding users to user management db
