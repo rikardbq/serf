@@ -8,22 +8,28 @@ use serde::{Deserialize, Serialize};
 use crate::core::db::QueryArg;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct Dat<'a> {
+pub struct RequestQuery<'a> {
     pub base_query: String,
     #[serde(borrow)]
     pub parts: Vec<QueryArg<'a>>,
 }
 
+#[derive(PartialEq, Serialize, Deserialize, Debug)]
+pub enum Iss {
+    S_,
+    C_,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Sub {
-    E_,
+    M_,
     F_,
     D_,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Claims {
-    pub iss: String,
+    pub iss: Iss,
     pub sub: Sub,
     // pub aud: String,
     pub dat: String,
@@ -33,7 +39,7 @@ pub struct Claims {
 
 pub fn generate_claims(content: String, subject: Sub) -> Claims {
     let claims = Claims {
-        iss: String::from("s_"),
+        iss: Iss::S_,
         sub: subject,
         // aud: String::from("c_"),
         dat: content,

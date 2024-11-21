@@ -1,8 +1,0 @@
-[x] Add core functionality for write and read to db
-[x] fix the query function to allow more generic argument lists / partial application of query params
-[] Handle different types of calls, I.E inserts vs fetches, etc (pass a subject in the token?)
-[x] Add web controllers in web lib
-[-] setup rest endpoints for actual use (needs more work later, prelim. done)
-[] start work on the CLI for adding users to user management db
-[] handle updates to the user management db so that the Arc Mutex handle gets the latest user hashmap
-    - use "notify" crate to listen on the db file change?
