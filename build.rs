@@ -1,23 +1,46 @@
+use sha2::Digest;
+use sha2::Sha256;
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
 
-use dirs::home_dir;
+// use this step to provide paths that are to be used
+// I.E anything provided from the outside in this step will override defaults
+// DEFAULTS:
+//  (root path) $HOME/.serf/
+//  (cfg path) $HOME/.serf/cfg/
+//  (users db path) $HOME/.serf/cfg/{hashed}/
+//      then {hashed}.db file is the users db
+//  (db paths) $HOME/.serf/db/{hashed}/
+//      folder is a sha256 hash of the db name
+//      containing {hashed}.db file
+/**
+* let test = home_dir()
+       .unwrap_or(env::var_os("OUT_DIR").unwrap().into())
+       .as_path();
+*/
 
 fn main() {
     let build_out_dir = env::var_os("OUT_DIR").unwrap();
-    // let test = home_dir().unwrap_or(env::var_os("OUT_DIR").unwrap().into());
+    let root_dir = env::var_os("SERF_ROOT_DIR").unwrap_or(OsString::from("./.serf"));
     let gen_dest_path = Path::new(&build_out_dir).join("gen.rs");
+
+    let user_db_hash =
+        base16ct::lower::encode_string(&Sha256::digest("cfg_root_db_path".as_bytes()));
+    let user_db_path_string = format!("{}", user_db_hash);
+
     fs::write(
         &gen_dest_path,
-        r#"
-        pub const DEFAULT_PORT: u16 = 8080;
-        pub const DEFAULT_DB_MAX_CONN: u32 = 12;
-        pub const DEFAULT_DB_MAX_IDLE_TIME: u64 = 3600;
-        pub fn message() -> &'static str {
-            "Hello, World!"
-        }
-        "#
-    ).unwrap();
+        format!(
+            r#"
+            pub const ROOT_DIR: &str = r"{}";
+            pub const USER_DB_PATH: &str = r"{}";
+            "#,
+            root_dir.to_str().unwrap(),
+            user_db_path_string.as_str()
+        ),
+    )
+    .unwrap();
     println!("cargo::rerun-if-changed=build.rs");
 }

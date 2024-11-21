@@ -26,8 +26,9 @@ papaya = "0.1.4"
 serde = { version = "1.0.214", features = ["derive"] }
 serde_json = "1.0.132"
 sha2 = "0.10.8"
-sqlx = { version = "0.8.2", features = ["sqlite", "runtime-tokio"] }
+sqlx = { version = "0.8.2", features = ["sqlite", "runtime-tokio", "json"] }
 tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread"] }
 
 [build-dependencies]
-dirs = "5.0.1"
+base16ct = { version = "0.2.0", features = ["alloc"] }
+sha2 = "0.10.8"

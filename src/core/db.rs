@@ -1,8 +1,10 @@
+use std::any::Any;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use sqlx::query::Query;
 use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
-use sqlx::{Column, Row};
+use sqlx::{Column, Executor, Row};
 use sqlx::{Database, Sqlite, SqlitePool, TypeInfo};
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -41,10 +43,13 @@ async fn fetch_query<'a>(
         .await
 }
 
-pub async fn execute_query<'a>(
+pub async fn execute_query<'a, T>(
     q: AppliedQuery<'a>,
-    db: &SqlitePool,
-) -> Result<SqliteQueryResult, sqlx::Error> {
+    db: T,
+) -> Result<SqliteQueryResult, sqlx::Error>
+where
+    T: Executor<'a, Database = Sqlite>,
+{
     apply_query(sqlx::query(q.query), q.args).execute(db).await
 }
 
@@ -101,6 +106,7 @@ fn map_sqliterow_col_to_json_value<'a>(
         "INTEGER" => do_try_get::<i32>(row, col_name),
         "REAL" => do_try_get::<f32>(row, col_name),
         "TEXT" => do_try_get::<String>(row, col_name),
+        "NULL" => do_try_get::<JsonValue>(row, col_name),
         _ => json!(null),
     }
 }

@@ -7,6 +7,7 @@ pub struct AppState {
     pub usr: Arc<papaya::HashMap<String, Usr>>,
     pub db_max_conn: u32,
     pub db_max_idle_time: u64,
+    pub db_path: String,
 }
 
 #[derive(Debug)]
