@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use sqlx::query::Query;

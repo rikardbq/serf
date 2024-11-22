@@ -1,16 +1,13 @@
-use std::sync::Arc;
-use std::time::Duration;
-
 use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
-use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 
 use crate::{
     core::{
-        db::{execute_query, fetch_all_as_json, AppliedQuery},
-        state::{AppState, Usr},
+        constants::errors::{self, ErrorReason},
+        state::AppState,
+        util::{get_database_connections, get_query_result_claims, get_user_entry_and_access},
     },
     web::{
-        jwt::{decode_token, generate_claims, generate_token, Iss, RequestQuery, Sub},
+        jwt::{decode_token, generate_token},
         request::{RequestBody, ResponseResult},
     },
 };
@@ -125,106 +122,66 @@ async fn handle_database_post(
     let header_u_ = match req.headers().get("u_") {
         Some(hdr) => hdr.to_str().unwrap(),
         _ => {
-            return HttpResponse::BadRequest()
-                .json(ResponseResult::new().error("ERROR=MissingHeader/s[ u_ ]"));
+            return HttpResponse::BadRequest().json(ResponseResult::new().error(format!(
+                "{} [ {} ]",
+                errors::ERROR_MISSING_HEADER,
+                "u_"
+            )));
         }
     };
 
-    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
-    let usr = usr_clone.pin();
-    let user_entry_for_id = match usr.get(header_u_) {
-        Some(u) => u,
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(ResponseResult::new().error("ERROR=UnknownUser"))
-        }
-    };
     let database_name = path.into_inner();
-    let user_access_right = match user_entry_for_id.db_ar.get(&database_name) {
-        Some(ar) => ar,
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(ResponseResult::new().error("ERROR=UserNoDatabaseAccess"))
+
+    let (user_entry, user_access) =
+        match get_user_entry_and_access(&data, header_u_, &database_name) {
+            Ok(ue) => ue,
+            Err(err) => {
+                return HttpResponse::Unauthorized().json(ResponseResult::new().error(err));
+            }
+        };
+
+    let db = match get_database_connections(&data, &database_name).await {
+        Ok(conn) => conn,
+        Err(err) => {
+            return HttpResponse::NotFound().json(ResponseResult::new().error(err));
         }
     };
 
-    let database_connections_clone: Arc<papaya::HashMap<String, SqlitePool>> =
-        Arc::clone(&data.database_connections);
-    let database_connections = database_connections_clone.pin();
-
-    if !database_connections.contains_key(&database_name) {
-        println!(
-            "database connection is not opened, trying to open database {}",
-            database_name
-        );
-        if let Ok(pool) = SqlitePoolOptions::new()
-            .max_connections(data.db_max_conn)
-            .idle_timeout(Duration::from_secs(data.db_max_idle_time))
-            .connect(&format!("sqlite:{}/{}/{}.db", data.db_path, database_name, database_name))
-            .await
-        {
-            database_connections.insert(database_name.clone(), pool);
-        } else {
-            return HttpResponse::NotFound().json(
-                ResponseResult::new().error(&format!("ERROR=Database not found for {}", database_name)),
-            );
-        }
-    }
-
-    let db = database_connections.get(&database_name).unwrap();
     let token = &req_body.payload;
-    let decoded_token = match decode_token(&token, &user_entry_for_id.up_hash) {
+    let decoded_token = match decode_token(&token, &user_entry.up_hash) {
         Ok(dec) => dec,
         Err(err) => {
             return HttpResponse::NotAcceptable()
-                .json(ResponseResult::new().error(&format!("ERROR={:?}", err.kind())));
-        }
-    };
-    let claims = decoded_token.claims;
-
-    if claims.iss != Iss::C_ {
-        return HttpResponse::NotAcceptable()
-            .json(ResponseResult::new().error("ERROR=InvalidIssuer"));
-    }
-
-    let dat: RequestQuery = serde_json::from_str(&claims.dat).unwrap();
-    let res = match claims.sub {
-        Sub::M_ => {
-            if *user_access_right >= 2 {
-                let result = execute_query(AppliedQuery::new(&dat.base_query).with_args(dat.parts), db)
-                    .await
-                    .unwrap()
-                    .rows_affected();
-                let claims = generate_claims(serde_json::to_string(&result).unwrap(), Sub::D_);
-                let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
-    
-                return HttpResponse::Ok().json(ResponseResult::new().payload(token));
-            }
-
-            HttpResponse::Forbidden()
-                .json(ResponseResult::new().error("ERROR=UserNotAllowed"))
-        }
-        Sub::F_ => {
-            if *user_access_right >= 1 {
-                let result =
-                    fetch_all_as_json(AppliedQuery::new(&dat.base_query).with_args(dat.parts), db)
-                        .await
-                        .unwrap();
-                let claims = generate_claims(serde_json::to_string(&result).unwrap(), Sub::D_);
-                let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
-    
-                return HttpResponse::Ok().json(ResponseResult::new().payload(token));
-            }
-
-            HttpResponse::Forbidden()
-                .json(ResponseResult::new().error("ERROR=UserNotAllowed"))
-        }
-        _ => {
-            HttpResponse::NotAcceptable().json(ResponseResult::new().error("ERROR=InvalidSubject"))
+                .json(ResponseResult::new().error(&format!("ERROR={:?}", err.kind())))
         }
     };
 
-    println!("HELLOOOOOOO");
+    let query_result_claims =
+        match get_query_result_claims(decoded_token.claims, user_access, &db).await {
+            Ok(res) => res,
+            Err(err) => {
+                if let Some(reason) = err.reason {
+                    if reason == ErrorReason::UserNotAllowed {
+                        return HttpResponse::Forbidden()
+                            .json(ResponseResult::new().error(err.message));
+                    } else if reason == ErrorReason::InvalidSubject {
+                        return HttpResponse::NotAcceptable()
+                            .json(ResponseResult::new().error(err.message));
+                    }
+                }
 
-    res
+                return HttpResponse::InternalServerError()
+                    .json(ResponseResult::new().error(errors::ERROR_UNSPECIFIED));
+            }
+        };
+
+    let token = match generate_token(query_result_claims, &user_entry.up_hash) {
+        Ok(t) => t,
+        Err(err) => {
+            return HttpResponse::InternalServerError()
+                .json(ResponseResult::new().error(&format!("ERROR={:?}", err.kind())))
+        }
+    };
+
+    HttpResponse::Ok().json(ResponseResult::new().payload(token))
 }

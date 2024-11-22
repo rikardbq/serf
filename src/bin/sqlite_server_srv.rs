@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
 use sqlite_server::core::db::{fetch_all_as_json, AppliedQuery};
-use sqlite_server::core::queries;
+use sqlite_server::core::constants::queries;
 use sqlite_server::core::state::{AppState, Usr};
 use sqlx::SqlitePool;
 
