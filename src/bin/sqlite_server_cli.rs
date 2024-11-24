@@ -101,13 +101,10 @@ async fn main() -> std::io::Result<()> {
 
         if command.eq("add") {
             if sub_command.eq("user") {
-                let u = get_flag_val(&args_split, "-u").unwrap();
-                let up = get_flag_val(&args_split, "-p").unwrap();
-                let udb = get_flag_val(&args_split, "-d").unwrap();
-                let udba = get_flag_val(&args_split, "-a")
-                    .unwrap()
-                    .parse::<i32>()
-                    .unwrap();
+                let u = get_flag_val::<String>(&args_split, "-u").unwrap();
+                let up = get_flag_val::<String>(&args_split, "-p").unwrap();
+                let udb = get_flag_val::<String>(&args_split, "-d").unwrap();
+                let udba = get_flag_val::<i32>(&args_split, "-a").unwrap();
 
                 if !u.eq("") && !up.eq("") && !udb.eq("") && udba != 0 {
                     let u_res = base16ct::lower::encode_string(&Sha256::digest(u.as_bytes()));

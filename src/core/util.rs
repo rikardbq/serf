@@ -116,7 +116,7 @@ impl<'a> Error<'a> {
     }
 }
 
-pub fn get_flag_val<'a>(args: &'a Vec<String>, flag: &'a str) -> Option<String> {
+pub fn get_flag_val<'a, T>(args: &'a Vec<String>, flag: &'a str) -> Option<T> where T: std::str::FromStr {
     let mut res = None;
 
     for i in 0..args.len() - 1 {
@@ -125,7 +125,13 @@ pub fn get_flag_val<'a>(args: &'a Vec<String>, flag: &'a str) -> Option<String> 
 
         if args_flag == flag {
             if !args_flag_val.starts_with("-") {
-                res = Some(args_flag_val.clone());
+                if let Ok(parsed_val) = args_flag_val.parse::<T>() {
+                    res = Some(parsed_val);
+                } else {
+                    panic!("Flag value cannot be parsed");
+                }
+
+                break;
             }
         };
     }
