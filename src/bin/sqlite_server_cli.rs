@@ -163,7 +163,7 @@ async fn main() -> std::io::Result<()> {
             }
         } else if command.eq("create") {
             if sub_command.eq("database") {
-                let db = get_flag_val(&args_split, "-db").unwrap();
+                let db = get_flag_val::<String>(&args_split, "-db").unwrap();
 
                 if !db.eq("") {
                     let db_name: String = db

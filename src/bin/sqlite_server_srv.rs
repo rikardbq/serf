@@ -59,17 +59,17 @@ async fn main() -> std::io::Result<()> {
                 serde_json::from_value::<std::collections::HashMap<String, u8>>(obj.clone())
                     .unwrap()
                     .iter()
-                    .for_each(|kv| {
-                        let _ = &mut db_ar.insert(kv.0.clone(), *kv.1);
+                    .for_each(|(k, v)| {
+                        let _ = &mut db_ar.insert(k.clone(), *v);
                     });
             });
         }
 
         usr_map_ref.insert(
-            username_hash.as_str().unwrap().to_string(),
+            String::from(username_hash.as_str().unwrap()),
             Usr {
-                u: username.as_str().unwrap().to_string(),
-                up_hash: username_password_hash.as_str().unwrap().to_string(),
+                u: String::from(username.as_str().unwrap()),
+                up_hash: String::from(username_password_hash.as_str().unwrap()),
                 db_ar: db_ar,
             },
         );

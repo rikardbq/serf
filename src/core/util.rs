@@ -127,11 +127,10 @@ pub fn get_flag_val<'a, T>(args: &'a Vec<String>, flag: &'a str) -> Option<T> wh
             if !args_flag_val.starts_with("-") {
                 if let Ok(parsed_val) = args_flag_val.parse::<T>() {
                     res = Some(parsed_val);
+                    break;
                 } else {
                     panic!("Flag value cannot be parsed");
                 }
-
-                break;
             }
         };
     }
