@@ -10,7 +10,7 @@ pub struct AppState {
     pub db_path: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Usr {
     pub u: String,
     pub up_hash: String,

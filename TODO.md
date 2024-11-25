@@ -26,7 +26,14 @@
     - folders will be created and populated with necessary files
 ---
 
-### BRANCH CLI
+### BRANCH WORK/DECLUTTER
+---
+- [x] Create utility functions to handle CLI args in a simpler way
+- [x] Create utility functions for retreiving database connections, check user access
+- [x] Simplify flow in database access controller with utility for asserting user access for given claims subject and generating response claims
+- [x] Add custom error type for clearer error messaging and differentiation in places where the return type to consumer may matter
+
+### BRANCH CLI (merged)
 ---
 - [x] Move user table creation to build.rs
 - [x] Use env for setting the root dir defaults

@@ -3,9 +3,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
+use sqlite_server::core::constants::queries;
 use sqlite_server::core::db::{fetch_all_as_json, AppliedQuery};
-use sqlite_server::core::queries;
 use sqlite_server::core::state::{AppState, Usr};
+use sqlite_server::core::util::get_flag_val;
 use sqlx::SqlitePool;
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
@@ -22,28 +23,9 @@ async fn main() -> std::io::Result<()> {
 
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        for i in 0..args.len() - 1 {
-            let flag = args[i].as_str();
-            let flag_val = args[i + 1].as_str();
-            let _ = match flag {
-                "--port" => {
-                    if !flag_val.starts_with("-") {
-                        port = flag_val.parse::<u16>().unwrap_or_default();
-                    }
-                }
-                "--db-max-conn" => {
-                    if !flag_val.starts_with("-") {
-                        db_max_conn = flag_val.parse::<u32>().unwrap_or_default();
-                    }
-                }
-                "--db-max-idle-time" => {
-                    if !flag_val.starts_with("-") {
-                        db_max_idle_time = flag_val.parse::<u64>().unwrap_or_default();
-                    }
-                }
-                _ => (),
-            };
-        }
+        port = get_flag_val::<u16>(&args, "--port").unwrap_or_default();
+        db_max_conn = get_flag_val::<u32>(&args, "--db-max-conn").unwrap_or_default();
+        db_max_idle_time = get_flag_val::<u64>(&args, "--db-max-idle-time").unwrap_or_default();
     }
 
     let root_dir = Path::new(ROOT_DIR);
@@ -77,17 +59,17 @@ async fn main() -> std::io::Result<()> {
                 serde_json::from_value::<std::collections::HashMap<String, u8>>(obj.clone())
                     .unwrap()
                     .iter()
-                    .for_each(|kv| {
-                        let _ = &mut db_ar.insert(kv.0.clone(), *kv.1);
+                    .for_each(|(k, v)| {
+                        let _ = &mut db_ar.insert(k.clone(), *v);
                     });
             });
         }
 
         usr_map_ref.insert(
-            username_hash.as_str().unwrap().to_string(),
+            String::from(username_hash.as_str().unwrap()),
             Usr {
-                u: username.as_str().unwrap().to_string(),
-                up_hash: username_password_hash.as_str().unwrap().to_string(),
+                u: String::from(username.as_str().unwrap()),
+                up_hash: String::from(username_password_hash.as_str().unwrap()),
                 db_ar: db_ar,
             },
         );

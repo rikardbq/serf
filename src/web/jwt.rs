@@ -20,7 +20,7 @@ pub enum Iss {
     C_,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(PartialEq, Serialize, Deserialize, Debug)]
 pub enum Sub {
     M_,
     F_,
