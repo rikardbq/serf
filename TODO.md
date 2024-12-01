@@ -4,8 +4,12 @@
 - [x] Add web controllers in web lib
 - [-] setup rest endpoints for actual use
     - [x] "{database}" more or less done
-    - [] "{database}/migrate" (for running migrations)
-        - scripts and management of these will have to be done on consumer side unless sqlx migrate has some feature for keeping track. Possibly both are needed to avoid calling the server when not needed.
+    - [x] "{database}/m" (for running migrations)
+        - use special table for book keeping of migrations. "dbName.<table>" as "dbName.\_\_migrations_tracker_t\_\_"
+        - versioning can be determined with chrono crate I.E datetime where 20241126180330 is YYYYmmddHHMMSS format
+        - migrations will be of similar type as mutation requests
+        - consumer side will bundle together all migrations that are still not applied
+        - expectation at migration endpoint is that there are possibly many queries to be applied
 - [-] start work on the CLI for adding users to user management db
     - [-] basic idea is to manage users with add, remove, modify commands (may have to use some library to manage sub-commanding)
     - same pattern would apply for managing DB's and user access to DB's (not final)
@@ -22,9 +26,21 @@
         - defaults(arch) in build scripts
             - [x] win: %APPDATA%\.serf
             - [] unix: $HOME/.serf
-                - at build replace the values with either the sane defaults or provided args.
     - folders will be created and populated with necessary files
+- [x] use transactions for mutations
+- [x] change usage of name "base_query in dat claim" to "query"
+- [] break out mutation and query logic into separate endpoints???
+- [] use middleware to check headers
 ---
+
+### BRANCH MIGRATIONS
+---
+- [x] Set up migrations (  {database}/m  ) endpoint
+- [x] Handle multiple migrations coming to endpoint as bundle
+- [x] Enforce shape of migration entry from consumer-side
+- [x] Create custom table for tracking migrations. \_\_migrations_tracker_t\_\_
+- [x] Add migrations support to JS connector lib, I.E consumer-side tracking file + some form of migration verification step.
+- [x] Apply migrations 1 by 1
 
 ### BRANCH WORK/DECLUTTER
 ---
