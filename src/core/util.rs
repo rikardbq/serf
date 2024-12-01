@@ -1,6 +1,6 @@
 use core::str;
+use std::sync::Arc;
 use std::time::Duration;
-use std::{borrow::Borrow, sync::Arc};
 
 use actix_web::web;
 use sqlx::sqlite::SqlitePoolOptions;
