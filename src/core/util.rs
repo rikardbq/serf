@@ -149,21 +149,13 @@ pub fn get_user_entry_and_access<'a>(
     let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
     let usr = usr_clone.pin();
 
-    let user_entry_for_id = match usr.get(header_u_) {
-        Some(u) => u,
-        None => {
-            return Err(errors::ERROR_UNKNOWN_USER);
-        }
-    };
-
-    let user_access_right = match user_entry_for_id.db_ar.get(database_name) {
-        Some(ar) => ar,
-        None => {
-            return Err(errors::ERROR_USER_NO_DATABASE_ACCESS);
-        }
-    };
-
-    Ok((user_entry_for_id.to_owned(), *user_access_right))
+    match usr.get(header_u_) {
+        Some(u) => match u.db_ar.get(database_name) {
+            Some(ar) => Ok((u.to_owned(), *ar)),
+            None => Err(errors::ERROR_USER_NO_DATABASE_ACCESS),
+        },
+        None => Err(errors::ERROR_UNKNOWN_USER),
+    }
 }
 
 pub async fn get_database_connections<'a>(

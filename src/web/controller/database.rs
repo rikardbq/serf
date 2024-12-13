@@ -139,9 +139,7 @@ async fn handle_database_post(
     let (user_entry, user_access) =
         match get_user_entry_and_access(&data, header_u_, &database_name) {
             Ok(ue) => ue,
-            Err(err) => {
-                return HttpResponse::Unauthorized().json(ResponseResult::new().error(err));
-            }
+            Err(err) => return HttpResponse::Unauthorized().json(ResponseResult::new().error(err)),
         };
 
     let payload_token = &req_body.payload;
@@ -155,9 +153,7 @@ async fn handle_database_post(
 
     let db = match get_database_connections(&data, &database_name).await {
         Ok(conn) => conn,
-        Err(err) => {
-            return HttpResponse::NotFound().json(ResponseResult::new().error(err));
-        }
+        Err(err) => return HttpResponse::NotFound().json(ResponseResult::new().error(err)),
     };
 
     let query_result_claims =
@@ -212,12 +208,10 @@ async fn handle_database_migration_post(
     let (user_entry, user_access) =
         match get_user_entry_and_access(&data, header_u_, &database_name) {
             Ok(ue) => ue,
-            Err(err) => {
-                return HttpResponse::Unauthorized().json(ResponseResult::new().error(err));
-            }
+            Err(err) => return HttpResponse::Unauthorized().json(ResponseResult::new().error(err)),
         };
 
-    if user_access < 3 {
+    if user_access < 2 {
         return HttpResponse::Forbidden()
             .json(ResponseResult::new().error(errors::ERROR_USER_NOT_ALLOWED));
     }
@@ -233,9 +227,7 @@ async fn handle_database_migration_post(
 
     let db = match get_database_connections(&data, &database_name).await {
         Ok(conn) => conn,
-        Err(err) => {
-            return HttpResponse::NotFound().json(ResponseResult::new().error(err));
-        }
+        Err(err) => return HttpResponse::NotFound().json(ResponseResult::new().error(err)),
     };
 
     let claims = decoded_token.claims;
@@ -283,7 +275,7 @@ async fn handle_database_migration_post(
             let _ = &mut transaction.rollback().await;
             panic!("{err}");
         }
-    }
+    };
 
     // apply migration
     let res = match execute_query(AppliedQuery::new(&migration.query), &mut *transaction).await {

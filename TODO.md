@@ -2,7 +2,7 @@
 - [x] fix the query function to allow more generic argument lists / partial application of query params
 - [x] Handle different types of calls, I.E inserts vs fetches, etc (pass a subject in the token?)
 - [x] Add web controllers in web lib
-- [-] setup rest endpoints for actual use
+- [x] setup rest endpoints for actual use
     - [x] "{database}" more or less done
     - [x] "{database}/m" (for running migrations)
         - use special table for book keeping of migrations. "dbName.<table>" as "dbName.\_\_migrations_tracker_t\_\_"
@@ -23,7 +23,7 @@
         - 1 folder per db to better namespace them on the filesystem since SQLite adds a bunch of meta files when manipulating the DB
 - [x] use build.rs file with sane defaults
     - SERF_ROOT_DIR env in build script, defaults to ./serf from the project root dir when in dev
-        - defaults(arch) in build scripts
+        - defaults(arch dependent) in build scripts
             - [x] win: %APPDATA%\.serf
             - [] unix: $HOME/.serf
     - folders will be created and populated with necessary files
@@ -31,6 +31,22 @@
 - [x] change usage of name "base_query in dat claim" to "query"
 - [] break out mutation and query logic into separate endpoints???
 - [] use middleware to check headers
+- [] CACHE queries
+    - post-processing step, I.E storing the data in CACHE and any potential tokenization \
+    of query is done in a separate thread as soon as possible. \
+    Caller thread still returns data to the user without waiting on any caching step.
+    - use papaya concurrent hashmap
+        - keyed on query as a whole?
+        - keyed on tokenized query?
+            - use SQL keywords as delimiter?
+                - SELECT * FROM users a LEFT JOIN something b ON b.name = a.name WHERE a.name = ?
+                    (base64 or hash of the query string) : {
+                        // find tables by splitting on FROM and JOINS
+                        affected_tables: ["users", "something"]
+                    }
+    
+    - CACHE busting will be done as a post-processing step to a write operation
+        - possibly by finding if the table written to is in any of the tokenized query keys for the database in question
 ---
 
 ### BRANCH MIGRATIONS
