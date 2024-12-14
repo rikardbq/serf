@@ -57,9 +57,7 @@ fn apply_query<'q>(
 ) -> Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>> {
     let args = match args {
         Some(args) if !args.is_empty() => args,
-        _ => {
-            return query;
-        }
+        _ => return query,
     };
 
     let [first, tail @ ..] = args.as_slice() else {

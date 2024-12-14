@@ -13,7 +13,7 @@ Note: Will probably error since the db files I have tested with aren't included.
                 --header 'u_: b1a74559bea16b1521205f95f07a25ea2f09f49eb4e265fa6057036d1dff7c22' \
                 --header 'Content-Type: application/json' \
                 --data '{
-                    "base_query": "SELECT * FROM users WHERE username = ? AND first_name = ? AND age = ?;",
+                    "query": "SELECT * FROM users WHERE username = ? AND first_name = ? AND age = ?;",
                     "parts": ["rikardbq", "Rikard", 35]
                 }'
                 ```
@@ -41,8 +41,8 @@ Note: Will probably error since the db files I have tested with aren't included.
                 ```
 
     - Server paths
-        - POST["/migrate/{database}"]
-            - TBD
+        - POST["/{database}/m"]
+            - Migration endpoint
                 - possible solution will be keeping track of database migrations on the server and allowing database consumer to be "dumb" or just execute what comes in blindly and error.
                 - consumer-side lib should have a notion of migrations, through a migration file pointing to schema changes in some way, either from a file or inline
         - POST["/{database}"]

@@ -13,9 +13,9 @@ pub const GET_USERS_AND_ACCESS: &str = r#"
 
 pub const CREATE_USERS_TABLE: &str = r#"
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY, 
-        username TEXT NOT NULL UNIQUE, 
-        username_hash TEXT NOT NULL UNIQUE, 
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        username_hash TEXT NOT NULL UNIQUE,
         username_password_hash TEXT NOT NULL
     );
 "#;
@@ -47,5 +47,21 @@ pub const INSERT_USER_DATABASE_ACCESS: &str = r#"
         database,
         access_right,
         username_hash
-    ) VALUES (?, ?, ?);
+    ) VALUES(?, ?, ?);
+"#;
+
+pub const CREATE_MIGRATIONS_TABLE: &str = r#"
+    CREATE TABLE IF NOT EXISTS __migrations_tracker_t__ (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        query TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_name ON __migrations_tracker_t__ (name);
+"#;
+
+pub const INSERT_MIGRATION: &str = r#"
+    INSERT INTO __migrations_tracker_t__(
+        name,
+        query
+    ) VALUES(?, ?);
 "#;

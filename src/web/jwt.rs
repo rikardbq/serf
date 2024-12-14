@@ -9,22 +9,29 @@ use crate::core::db::QueryArg;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RequestQuery<'a> {
-    pub base_query: String,
+    pub query: String,
     #[serde(borrow)]
     pub parts: Vec<QueryArg<'a>>,
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct RequestMigration {
+    pub name: String,
+    pub query: String,
+}
+
 #[derive(PartialEq, Serialize, Deserialize, Debug)]
 pub enum Iss {
-    S_,
-    C_,
+    CLIENT,
+    SERVER,
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug)]
 pub enum Sub {
-    M_,
-    F_,
-    D_,
+    DATA,
+    FETCH,
+    MIGRATE,
+    MUTATE,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -39,7 +46,7 @@ pub struct Claims {
 
 pub fn generate_claims(content: String, subject: Sub) -> Claims {
     let claims = Claims {
-        iss: Iss::S_,
+        iss: Iss::SERVER,
         sub: subject,
         // aud: String::from("c_"),
         dat: content,
@@ -77,12 +84,14 @@ pub fn decode_token(
     token: &str,
     secret: &str,
 ) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
-    let validation = Validation::new(Algorithm::HS256);
+    let mut validation = Validation::new(Algorithm::HS256);
+    let _ = &mut validation.set_issuer(&["CLIENT"]);
+
     // validation.set_audience(&["c_"]); // may need to use this at some point
 
     decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),
-        &validation,
+        &mut validation,
     )
 }

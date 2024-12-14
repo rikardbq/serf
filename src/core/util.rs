@@ -101,14 +101,14 @@ pub struct Error<'a> {
 }
 
 impl<'a> Error<'a> {
-    fn new(message: &'a str) -> Self {
+    pub fn new(message: &'a str) -> Self {
         Error {
             message: message,
             reason: None,
         }
     }
 
-    fn with_reason(self, reason: ErrorReason) -> Self {
+    pub fn with_reason(self, reason: ErrorReason) -> Self {
         Error {
             reason: Some(reason),
             ..self
@@ -116,7 +116,10 @@ impl<'a> Error<'a> {
     }
 }
 
-pub fn get_flag_val<'a, T>(args: &'a Vec<String>, flag: &'a str) -> Option<T> where T: std::str::FromStr {
+pub fn get_flag_val<'a, T>(args: &'a Vec<String>, flag: &'a str) -> Option<T>
+where
+    T: std::str::FromStr,
+{
     let mut res = None;
 
     for i in 0..args.len() - 1 {
@@ -146,21 +149,13 @@ pub fn get_user_entry_and_access<'a>(
     let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
     let usr = usr_clone.pin();
 
-    let user_entry_for_id = match usr.get(header_u_) {
-        Some(u) => u,
-        None => {
-            return Err(errors::ERROR_UNKNOWN_USER);
-        }
-    };
-
-    let user_access_right = match user_entry_for_id.db_ar.get(database_name) {
-        Some(ar) => ar,
-        None => {
-            return Err(errors::ERROR_USER_NO_DATABASE_ACCESS);
-        }
-    };
-
-    Ok((user_entry_for_id.to_owned(), *user_access_right))
+    match usr.get(header_u_) {
+        Some(u) => match u.db_ar.get(database_name) {
+            Some(ar) => Ok((u.to_owned(), *ar)),
+            None => Err(errors::ERROR_USER_NO_DATABASE_ACCESS),
+        },
+        None => Err(errors::ERROR_UNKNOWN_USER),
+    }
 }
 
 pub async fn get_database_connections<'a>(
@@ -201,32 +196,44 @@ pub async fn get_query_result_claims<'a>(
 ) -> Result<Claims, Error<'a>> {
     let dat: RequestQuery = serde_json::from_str(&query_claims.dat).unwrap();
     let response_claims_result = match query_claims.sub {
-        Sub::M_ => {
+        Sub::MUTATE => {
             if user_access >= 2 {
-                let result =
-                    execute_query(AppliedQuery::new(&dat.base_query).with_args(dat.parts), db)
-                        .await
-                        .unwrap()
-                        .rows_affected();
+                let mut transaction = db.begin().await.unwrap();
 
-                Ok(generate_claims(
-                    serde_json::to_string(&result).unwrap(),
-                    Sub::D_,
-                ))
+                match execute_query(
+                    AppliedQuery::new(&dat.query).with_args(dat.parts),
+                    &mut *transaction,
+                )
+                .await
+                {
+                    Ok(res) => {
+                        let _ = &mut transaction.commit().await;
+
+                        Ok(generate_claims(
+                            serde_json::to_string(&res.rows_affected()).unwrap(),
+                            Sub::DATA,
+                        ))
+                    }
+                    Err(_) => {
+                        let _ = &mut transaction.rollback().await;
+
+                        Err(Error::new(errors::ERROR_UNSPECIFIED))
+                    }
+                }
             } else {
                 Err(Error::new(errors::ERROR_FORBIDDEN).with_reason(ErrorReason::UserNotAllowed))
             }
         }
-        Sub::F_ => {
+        Sub::FETCH => {
             if user_access >= 1 {
                 let result =
-                    fetch_all_as_json(AppliedQuery::new(&dat.base_query).with_args(dat.parts), &db)
+                    fetch_all_as_json(AppliedQuery::new(&dat.query).with_args(dat.parts), &db)
                         .await
                         .unwrap();
 
                 Ok(generate_claims(
                     serde_json::to_string(&result).unwrap(),
-                    Sub::D_,
+                    Sub::DATA,
                 ))
             } else {
                 Err(Error::new(errors::ERROR_FORBIDDEN).with_reason(ErrorReason::UserNotAllowed))

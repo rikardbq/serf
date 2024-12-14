@@ -41,7 +41,7 @@ async fn handle_generate_token(
         }
     };
 
-    let claims = generate_claims(req_body, Sub::F_);
+    let claims = generate_claims(req_body, Sub::FETCH);
     let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
 
     return HttpResponse::Ok().body(token);
