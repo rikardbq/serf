@@ -36,14 +36,27 @@
     of query is done in a separate thread as soon as possible. \
     Caller thread still returns data to the user without waiting on any caching step.
     - use papaya concurrent hashmap
-        - keyed on query as a whole?
-        - keyed on tokenized query?
-            - use SQL keywords as delimiter?
-                - SELECT * FROM users a LEFT JOIN something b ON b.name = a.name WHERE a.name = ?
-                    (base64 or hash of the query string) : {
-                        // find tables by splitting on FROM and JOINS
-                        affected_tables: ["users", "something"]
-                    }
+        - use base64 encoded version of the query
+            - SELECT * FROM users a LEFT JOIN something b ON b.name = a.name WHERE a.name = ?
+                
+                hashmap_1
+                (base64-query-string) : struct { 
+                    expires?: timestamp(can be updated),
+                    data: JsonValue 
+                }
+
+                hashmap_2
+                (table name) : [
+                    (base64-query-string_1),
+                    (base64-query-string_2),
+                    (base64-query-string_3),
+                    (base64-query-string_4)
+                ]
+
+                (on write check hashmap_2 if the table written to exists in the map)
+                (if true then use the array it stores as a value and remove all the entries from hashmap_1 that matches the hashmap_2 value array items)
+
+
     
     - CACHE busting will be done as a post-processing step to a write operation
         - possibly by finding if the table written to is in any of the tokenized query keys for the database in question
