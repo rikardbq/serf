@@ -1,6 +1,10 @@
 ### SQLite Server in Rust using sqlx backend to manage db
 Because it's fun ^^
 
+edit: 2024-12-14
+---
+#### OUTDATED, UPDATE INCOMING WITH NEXT FEATURE
+
 Note: Will probably error since the db files I have tested with aren't included.
 
 - API (so far)
