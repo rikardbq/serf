@@ -3,7 +3,7 @@ use std::sync::Arc;
 use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
-    core::state::{AppState, Usr},
+    core::state::{AppState, User},
     web::{
         jwt::{decode_token, generate_claims, generate_token, verify_token, Sub},
         request::{RequestBody, ResponseResult},
@@ -30,10 +30,10 @@ async fn handle_generate_token(
         }
     };
 
-    // get the usr data
-    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
-    let usr = usr_clone.pin();
-    let user_entry_for_id = match usr.get(header_u_) {
+    // get the users data
+    let users_clone: Arc<papaya::HashMap<String, User>> = Arc::clone(&data.users);
+    let users = users_clone.pin();
+    let user_entry_for_id = match users.get(header_u_) {
         Some(u) => u,
         None => {
             return HttpResponse::Unauthorized()
@@ -42,7 +42,7 @@ async fn handle_generate_token(
     };
 
     let claims = generate_claims(req_body, Sub::FETCH);
-    let token = generate_token(claims, &user_entry_for_id.up_hash).unwrap();
+    let token = generate_token(claims, &user_entry_for_id.username_password_hash).unwrap();
 
     return HttpResponse::Ok().body(token);
 }
@@ -61,10 +61,10 @@ pub async fn handle_verify_token(
         }
     };
 
-    // get the usr data
-    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
-    let usr = usr_clone.pin();
-    let user_entry_for_id = match usr.get(header_u_) {
+    // get the users data
+    let users_clone: Arc<papaya::HashMap<String, User>> = Arc::clone(&data.users);
+    let users = users_clone.pin();
+    let user_entry_for_id = match users.get(header_u_) {
         Some(u) => u,
         None => {
             return HttpResponse::Unauthorized()
@@ -73,7 +73,7 @@ pub async fn handle_verify_token(
     };
 
     let token = &req_body.payload;
-    let is_token_valid = verify_token(token, &user_entry_for_id.up_hash).unwrap();
+    let is_token_valid = verify_token(token, &user_entry_for_id.username_password_hash).unwrap();
     println!("valid={}", is_token_valid);
 
     HttpResponse::Ok().body(is_token_valid.to_string())
@@ -93,10 +93,10 @@ pub async fn handle_decode_token(
         }
     };
 
-    // get the usr data
-    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
-    let usr = usr_clone.pin();
-    let user_entry_for_id = match usr.get(header_u_) {
+    // get the users data
+    let users_clone: Arc<papaya::HashMap<String, User>> = Arc::clone(&data.users);
+    let users = users_clone.pin();
+    let user_entry_for_id = match users.get(header_u_) {
         Some(u) => u,
         None => {
             return HttpResponse::Unauthorized()
@@ -105,7 +105,7 @@ pub async fn handle_decode_token(
     };
 
     let token = &req_body.payload;
-    let decoded_token = decode_token(token, &user_entry_for_id.up_hash).unwrap();
+    let decoded_token = decode_token(token, &user_entry_for_id.username_password_hash).unwrap();
     println!("token={:?}", decoded_token);
 
     HttpResponse::Ok().json(decoded_token.claims)

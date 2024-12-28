@@ -11,89 +11,8 @@ use crate::web::jwt::{generate_claims, Claims, RequestQuery, Sub};
 use super::{
     constants::errors::{self, ErrorReason},
     db::{execute_query, fetch_all_as_json, AppliedQuery},
-    state::{AppState, Usr},
+    state::{AppState, User},
 };
-
-// pub const USR_CONFIG_LOCATION: &str = "./config_/usr_";
-
-// pub fn usr_config_buffer(location: &str) -> Vec<u8> {
-//     let mut buffer = Vec::<u8>::new();
-
-//     let _ = (match File::open(location) {
-//         Ok(f) => {
-//             println!("Using usr config from {}", location);
-//             f
-//         }
-//         Err(err) => {
-//             eprintln!("Error reading usr config with ERROR={}", err);
-//             panic!()
-//         }
-//     })
-//     .read_to_end(&mut buffer);
-
-//     buffer
-// }
-
-// pub fn parse_usr_config(config_buffer: Vec<u8>) -> papaya::HashMap<String, Usr> {
-//     let usr_config = str::from_utf8(&config_buffer).unwrap();
-//     let usr_entries: Vec<&str> = usr_config.split("\n").collect();
-//     let usr_map = papaya::HashMap::new();
-//     let usr_map_ref = usr_map.pin();
-
-//     usr_entries.iter().for_each(move |x| {
-//         let t: Vec<&str> = x.split("|").collect();
-//         let access_entries: Vec<&str> = t[3].split(",").collect();
-//         let mut access_map = std::collections::HashMap::new();
-
-//         access_entries.iter().for_each(|y| {
-//             let u: Vec<&str> = y.split(":").collect();
-//             let _ = access_map.insert(String::from(u[0]), u[1].parse::<u8>().unwrap());
-//         });
-
-//         let _ = usr_map_ref.insert(
-//             String::from(t[1]),
-//             Usr {
-//                 u: String::from(t[0]),
-//                 up_hash: String::from(t[2]),
-//                 db_ar: access_map,
-//             },
-//         );
-//     });
-
-//     usr_map
-// }
-
-/*
-
-    // setup user access to be checked later on whenever a client tries to read or write to a given DB
-    // re-use setup as part of usr_ conf file update to avoid downtime whenever new entries in access file needs to be handled
-    let usr_config = parse_usr_config(USR_CONFIG_LOCATION);
-    let usr_entries: Vec<&str> = usr_config.as_str().split("\n").collect();
-    let mut usr_map = HashMap::new();
-
-    usr_entries.iter().for_each(|x| {
-        let t: Vec<&str> = x.split("|").collect();
-        let access_entries: Vec<&str> = t[3].split(",").collect();
-        let mut access_map = HashMap::new();
-
-        access_entries.iter().for_each(|y| {
-            let u: Vec<&str> = y.split(":").collect();
-            let _ = &mut access_map.insert(String::from(u[0]), u[1].parse::<u8>().unwrap());
-        });
-
-        let _ = &mut usr_map.insert(String::from(t[1]), Usr {
-            u: String::from(t[0]),
-            up_hash: String::from(t[2]),
-            db_ar: access_map,
-        });
-    });
-
-    ---
-
-    simply call the usr_ db "./<project_root>/r_/usr_.db"
-    anything else lives in a different folder alltogether "./<project_root>/p_/<whatever>.db"
-
-*/
 
 pub struct Error<'a> {
     pub message: &'a str,
@@ -144,49 +63,52 @@ where
 pub fn get_user_entry_and_access<'a>(
     data: &'a web::Data<AppState>,
     header_u_: &'a str,
-    database_name: &'a String,
-) -> Result<(Usr, u8), &'a str> {
-    let usr_clone: Arc<papaya::HashMap<String, Usr>> = Arc::clone(&data.usr);
-    let usr = usr_clone.pin();
+    db_name: &'a str,
+) -> Result<(User, u8), &'a str> {
+    let users_clone: Arc<papaya::HashMap<String, User>> = Arc::clone(&data.users);
+    let users = users_clone.pin();
 
-    match usr.get(header_u_) {
-        Some(u) => match u.db_ar.get(database_name) {
-            Some(ar) => Ok((u.to_owned(), *ar)),
-            None => Err(errors::ERROR_USER_NO_DATABASE_ACCESS),
-        },
+    match users.get(header_u_) {
+        Some(u) => {
+            let db_access_rights_pin = u.db_access_rights.pin();
+            match db_access_rights_pin.get(db_name) {
+                Some(ar) => Ok((u.to_owned(), *ar)),
+                None => Err(errors::ERROR_USER_NO_DATABASE_ACCESS),
+            }
+        }
         None => Err(errors::ERROR_UNKNOWN_USER),
     }
 }
 
-pub async fn get_database_connections<'a>(
+pub async fn get_db_connections<'a>(
     data: &'a web::Data<AppState>,
-    database_name: &'a String,
+    db_name: &'a str,
 ) -> Result<SqlitePool, &'a str> {
-    let database_connections_clone: Arc<papaya::HashMap<String, SqlitePool>> =
-        Arc::clone(&data.database_connections);
-    let database_connections = database_connections_clone.pin();
+    let db_connections_clone: Arc<papaya::HashMap<String, SqlitePool>> =
+        Arc::clone(&data.db_connections);
+    let db_connections = db_connections_clone.pin();
 
-    if !database_connections.contains_key(database_name) {
+    if !db_connections.contains_key(db_name) {
         println!(
-            "database connection is not opened, trying to open database {}",
-            database_name
+            "Database connection is not opened, trying to open database {}",
+            db_name
         );
         if let Ok(pool) = SqlitePoolOptions::new()
-            .max_connections(data.db_max_conn)
+            .max_connections(data.db_max_connections)
             .idle_timeout(Duration::from_secs(data.db_max_idle_time))
             .connect(&format!(
                 "sqlite:{}/{}/{}.db",
-                data.db_path, database_name, database_name
+                data.db_path, db_name, db_name
             ))
             .await
         {
-            database_connections.insert(database_name.to_owned(), pool);
+            db_connections.insert(db_name.to_owned(), pool);
         } else {
             return Err(errors::ERROR_DATABASE_NOT_FOUND);
         }
     }
 
-    Ok(database_connections.get(database_name).unwrap().to_owned())
+    Ok(db_connections.get(db_name).unwrap().to_owned())
 }
 
 pub async fn get_query_result_claims<'a>(
