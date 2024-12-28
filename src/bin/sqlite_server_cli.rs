@@ -34,7 +34,7 @@ impl DatabaseManager {
         DatabaseManager {
             consumer_db_base_path: consumer_db_base_path,
             user_db_base_path: user_db_base_path,
-            user_db_full_path_string: user_db_full_path_string
+            user_db_full_path_string: user_db_full_path_string,
         }
     }
 
@@ -49,9 +49,10 @@ impl DatabaseManager {
 
         match Sqlite::create_database(&self.user_db_full_path_string).await {
             Ok(_) => {
-                let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db_full_path_string))
-                    .await
-                    .unwrap();
+                let pool =
+                    SqlitePool::connect(&format!("sqlite:{}", self.user_db_full_path_string))
+                        .await
+                        .unwrap();
                 let mut transaction = pool.begin().await.unwrap();
 
                 // CREATE users
@@ -233,33 +234,44 @@ async fn main() -> std::io::Result<()> {
         let cmd_one = args[1].as_str();
         let cmd_two = args[2].as_str();
 
-        if cmd_one.eq("create") {
-            let args_split = args.clone().split_off(3);
-            if cmd_two.eq("database") {
-                let db = get_flag_val::<String>(&args_split, "-db").unwrap();
-                database_manager.create_database(&db).await;
-            }
+        match cmd_one {
+            "create" => {
+                let args_split = args.clone().split_off(3);
 
-            if cmd_two.eq("user") {
-                let username = get_flag_val::<String>(&args_split, "-u").unwrap();
-                let password = get_flag_val::<String>(&args_split, "-p").unwrap();
-
-                database_manager.create_user(&username, &password).await;
-            }
-        } else if cmd_one.eq("modify") {
-            if cmd_two.eq("user") {
-                let cmd_three = args[3].as_str();
-                let args_split = args.clone().split_off(4);
-                if cmd_three.eq("access") {
-                    let username = get_flag_val::<String>(&args_split, "-u").unwrap();
-                    let database = get_flag_val::<String>(&args_split, "-db").unwrap();
-                    let access_right = get_flag_val::<i32>(&args_split, "-a").unwrap();
-
-                    database_manager
-                        .modify_user_access(&username, &database, access_right)
-                        .await;
+                match cmd_two {
+                    "database" => {
+                        let db = get_flag_val::<String>(&args_split, "-db").unwrap();
+                        database_manager.create_database(&db).await;
+                    }
+                    "user" => {
+                        let username = get_flag_val::<String>(&args_split, "-u").unwrap();
+                        let password = get_flag_val::<String>(&args_split, "-p").unwrap();
+                        database_manager.create_user(&username, &password).await;
+                    },
+                    _ => panic!("Error: Unknown command, supported commands are [database, user]")
                 }
             }
+            "modify" => match cmd_two {
+                "user" => {
+                    let cmd_three = args[3].as_str();
+                    let args_split = args.clone().split_off(4);
+
+                    match cmd_three {
+                        "access" => {
+                            let username = get_flag_val::<String>(&args_split, "-u").unwrap();
+                            let database = get_flag_val::<String>(&args_split, "-db").unwrap();
+                            let access_right = get_flag_val::<i32>(&args_split, "-a").unwrap();
+
+                            database_manager
+                                .modify_user_access(&username, &database, access_right)
+                                .await;
+                        },
+                        _ => panic!("Error: Unknown command, supported commands are [access]")
+                    }
+                },
+                _ => panic!("Error: Unknown command, supported commands are [user]")
+            },
+            _ => panic!("Error: Unknown command, supported commands are [create, modify]")
         }
     }
 
