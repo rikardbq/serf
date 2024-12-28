@@ -6,7 +6,6 @@ use actix_web::{web, App, HttpServer};
 use papaya::HashMap;
 use sqlite_server::core::constants::queries;
 use sqlite_server::core::db::{fetch_all_as_json, AppliedQuery};
-use sqlite_server::core::state::{AppState, Usr};
 use sqlite_server::core::state::{AppState, User};
 use sqlite_server::core::util::get_flag_val;
 use sqlx::SqlitePool;
