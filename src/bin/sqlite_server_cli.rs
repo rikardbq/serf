@@ -14,41 +14,42 @@ use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
 struct DatabaseManager {
-    pub consumer_db_path: PathBuf,
-    pub user_db: String,
+    pub consumer_db_base_path: PathBuf,
+    pub user_db_base_path: PathBuf,
+    pub user_db_full_path_string: String,
 }
 
 impl DatabaseManager {
     pub fn new() -> DatabaseManager {
         let root_dir = Path::new(ROOT_DIR);
         let cfg_path = root_dir.join("cfg");
-        let consumer_db_path = root_dir.join("db");
-        let user_db_full_path_string = format!("{}/{}", cfg_path.to_str().unwrap(), USER_DB_PATH);
-        let user_db_full_path = Path::new(&user_db_full_path_string);
-        let user_db = format!(
+        let consumer_db_base_path = root_dir.join("db");
+        let user_db_base_path = cfg_path.join(USER_DB_HASH);
+        let user_db_full_path_string = format!(
             "{}/{}.db",
-            user_db_full_path.to_str().unwrap(),
-            USER_DB_PATH
+            user_db_base_path.to_str().unwrap(),
+            USER_DB_HASH
         );
 
-        if !user_db_full_path.exists() {
-            let _ = fs::create_dir_all(user_db_full_path);
-        }
-
-        if !consumer_db_path.exists() {
-            let _ = fs::create_dir_all(&consumer_db_path);
-        }
-
         DatabaseManager {
-            consumer_db_path: consumer_db_path,
-            user_db: user_db,
+            consumer_db_base_path: consumer_db_base_path,
+            user_db_base_path: user_db_base_path,
+            user_db_full_path_string: user_db_full_path_string
         }
     }
 
     pub async fn init(&self) {
-        match Sqlite::create_database(&self.user_db).await {
+        if !self.user_db_base_path.exists() {
+            let _ = fs::create_dir_all(&self.user_db_base_path);
+        }
+
+        if !self.consumer_db_base_path.exists() {
+            let _ = fs::create_dir_all(&self.consumer_db_base_path);
+        }
+
+        match Sqlite::create_database(&self.user_db_full_path_string).await {
             Ok(_) => {
-                let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db))
+                let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db_full_path_string))
                     .await
                     .unwrap();
                 let mut transaction = pool.begin().await.unwrap();
@@ -106,7 +107,7 @@ impl DatabaseManager {
 
             let consumer_db_full_path_string = format!(
                 "{}/{}",
-                self.consumer_db_path.to_str().unwrap(),
+                self.consumer_db_base_path.to_str().unwrap(),
                 db_name_hash
             );
             let consumer_db_full_path = Path::new(&consumer_db_full_path_string);
@@ -145,7 +146,7 @@ impl DatabaseManager {
                 format!("{}{}", username, password).as_bytes(),
             ));
 
-            let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db))
+            let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db_full_path_string))
                 .await
                 .unwrap();
             let mut transaction = pool.begin().await.unwrap();
@@ -178,7 +179,7 @@ impl DatabaseManager {
             let database_name_hash =
                 base16ct::lower::encode_string(&Sha256::digest(database_name.as_bytes()));
 
-            let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db))
+            let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db_full_path_string))
                 .await
                 .unwrap();
             let mut transaction = pool.begin().await.unwrap();
@@ -220,7 +221,7 @@ impl DatabaseManager {
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let database_manager = DatabaseManager::new();
-    if !Sqlite::database_exists(&database_manager.user_db)
+    if !Sqlite::database_exists(&database_manager.user_db_full_path_string)
         .await
         .unwrap_or(false)
     {
@@ -231,7 +232,7 @@ async fn main() -> std::io::Result<()> {
     if args.len() > 1 {
         let cmd_one = args[1].as_str();
         let cmd_two = args[2].as_str();
-        
+
         if cmd_one.eq("create") {
             let args_split = args.clone().split_off(3);
             if cmd_two.eq("database") {
