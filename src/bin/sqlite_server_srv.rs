@@ -33,8 +33,8 @@ async fn main() -> std::io::Result<()> {
     let root_dir = Path::new(ROOT_DIR);
     let cfg_path = root_dir.join("cfg");
     let consumer_db_path = root_dir.join("db");
-    let user_db_full_path_string = format!("{}/{}", cfg_path.to_str().unwrap(), USER_DB_PATH);
-    let user_db = format!("{}/{}.db", user_db_full_path_string, USER_DB_PATH);
+    let user_db_full_path_string = format!("{}/{}", cfg_path.to_str().unwrap(), USER_DB_HASH);
+    let user_db = format!("{}/{}.db", user_db_full_path_string, USER_DB_HASH);
 
     let pool = SqlitePool::connect(&format!("sqlite:{}", user_db))
         .await
