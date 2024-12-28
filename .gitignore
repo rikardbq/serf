@@ -1,3 +1,4 @@
-/target
 /.serf
+/target
+/testing
 **.db**

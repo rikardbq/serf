@@ -5,7 +5,7 @@ pub const GET_USERS_AND_ACCESS: &str = r#"
         u.username_hash,
         json_array(
             json_object(
-                database, access_right
+                database_hash, access_right
             )
         ) as databases
     FROM users u INNER JOIN users_database_access USING(username_hash);
@@ -24,9 +24,10 @@ pub const CREATE_USERS_DATABASE_ACCESS_TABLE: &str = r#"
     CREATE TABLE IF NOT EXISTS users_database_access (
         id INTEGER PRIMARY KEY,
         database TEXT NOT NULL,
+        database_hash TEXT NOT NULL,
         access_right INTEGER NOT NULL DEFAULT 1,
         username_hash TEXT NOT NULL,
-        UNIQUE(database,username_hash)
+        UNIQUE(database_hash,username_hash)
         FOREIGN KEY (username_hash)
         REFERENCES users (username_hash)
             ON UPDATE CASCADE
@@ -42,12 +43,19 @@ pub const INSERT_USER: &str = r#"
     ) VALUES(?, ?, ?);
 "#;
 
-pub const INSERT_USER_DATABASE_ACCESS: &str = r#"
+pub const UPSERT_USER_DATABASE_ACCESS: &str = r#"
     INSERT OR IGNORE INTO users_database_access(
         database,
+        database_hash,
         access_right,
         username_hash
-    ) VALUES(?, ?, ?);
+    ) VALUES(?, ?, ?, ?)
+    ON CONFLICT(
+        database_hash,
+        username_hash
+    ) DO UPDATE SET
+        access_right = excluded.access_right
+    WHERE excluded.database_hash=users_database_access.database_hash AND excluded.username_hash=users_database_access.username_hash;
 "#;
 
 pub const CREATE_MIGRATIONS_TABLE: &str = r#"

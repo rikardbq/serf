@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use sqlx::query::Query;
@@ -12,6 +14,12 @@ pub enum QueryArg<'a> {
     Float(f32),
     #[serde(borrow)]
     String(&'a str),
+}
+
+impl<'a> fmt::Display for QueryArg<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub struct AppliedQuery<'a> {

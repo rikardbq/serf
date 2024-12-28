@@ -19,15 +19,17 @@ path = "src/bin/sqlite_server_cli.rs"
 [dependencies]
 actix-web = "4.9.0"
 base16ct = { version = "0.2.0", features = ["alloc"] }
-chrono = "0.4.38"
+chrono = "0.4.39"
 jsonwebtoken = "9.3.0"
 notify = "7.0.0"
-papaya = "0.1.4"
-serde = { version = "1.0.215", features = ["derive"] }
-serde_json = "1.0.133"
+papaya = "0.1.7"
+rbase64 = "2.0.3"
+regex = { version = "1.11.1", features = ["std"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.134"
 sha2 = "0.10.8"
 sqlx = { version = "0.8.2", features = ["sqlite", "runtime-tokio", "json"] }
-tokio = { version = "1.41.1", features = ["macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1.42.0", features = ["macros", "rt", "rt-multi-thread"] }
 
 [build-dependencies]
 base16ct = { version = "0.2.0", features = ["alloc"] }

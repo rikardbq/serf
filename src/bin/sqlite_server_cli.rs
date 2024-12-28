@@ -1,54 +1,54 @@
 use core::str;
-use std::env;
-use std::fs::create_dir_all;
+use std::fs;
 use std::path::Path;
+use std::{env, path::PathBuf};
 
 use sha2::{Digest, Sha256};
 use sqlite_server::core::{
-    db::{execute_query, AppliedQuery, QueryArg},
     constants::queries,
+    db::{execute_query, AppliedQuery, QueryArg},
     util::get_flag_val,
 };
 use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
-// DEFAULTS:
-//  (root path) $HOME/.serf/
-//  (cfg path) $HOME/.serf/cfg/
-//  (users db path) $HOME/.serf/cfg/{hashed}/
-//      then {hashed}.db file is the users db
-//  (db paths) $HOME/.serf/db/{hashed}/
-//      folder is a sha256 hash of the db name
-//      containing {hashed}.db file
+struct DatabaseManager {
+    pub consumer_db_path: PathBuf,
+    pub user_db: String,
+}
 
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
-    let root_dir = Path::new(ROOT_DIR);
-    let cfg_path = root_dir.join("cfg");
-    let consumer_db_path = root_dir.join("db");
-    let user_db_full_path_string = format!("{}/{}", cfg_path.to_str().unwrap(), USER_DB_PATH);
-    let user_db_full_path = Path::new(&user_db_full_path_string);
+impl DatabaseManager {
+    pub fn new() -> DatabaseManager {
+        let root_dir = Path::new(ROOT_DIR);
+        let cfg_path = root_dir.join("cfg");
+        let consumer_db_path = root_dir.join("db");
+        let user_db_full_path_string = format!("{}/{}", cfg_path.to_str().unwrap(), USER_DB_PATH);
+        let user_db_full_path = Path::new(&user_db_full_path_string);
+        let user_db = format!(
+            "{}/{}.db",
+            user_db_full_path.to_str().unwrap(),
+            USER_DB_PATH
+        );
 
-    if !user_db_full_path.exists() {
-        let _ = create_dir_all(user_db_full_path);
+        if !user_db_full_path.exists() {
+            let _ = fs::create_dir_all(user_db_full_path);
+        }
+
+        if !consumer_db_path.exists() {
+            let _ = fs::create_dir_all(&consumer_db_path);
+        }
+
+        DatabaseManager {
+            consumer_db_path: consumer_db_path,
+            user_db: user_db,
+        }
     }
 
-    if !consumer_db_path.exists() {
-        let _ = create_dir_all(&consumer_db_path);
-    }
-
-    println!("{}", user_db_full_path_string);
-
-    let user_db = format!("{}/{}.db", user_db_full_path_string, USER_DB_PATH);
-
-    if !Sqlite::database_exists(&user_db).await.unwrap_or(false) {
-        println!("INIT ");
-
-        match Sqlite::create_database(&user_db).await {
+    pub async fn init(&self) {
+        match Sqlite::create_database(&self.user_db).await {
             Ok(_) => {
-                println!("CREATE root database DONE");
-                let pool = SqlitePool::connect(&format!("sqlite:{}", user_db))
+                let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db))
                     .await
                     .unwrap();
                 let mut transaction = pool.begin().await.unwrap();
@@ -61,8 +61,6 @@ async fn main() -> std::io::Result<()> {
                 .await
                 {
                     Ok(_) => {
-                        println!("CREATE users table DONE");
-
                         // CREATE database accesses
                         // access_right can contain, or at least handle 1, 2 or 3 as value
                         // all other values will be seen as non-functioning
@@ -74,136 +72,190 @@ async fn main() -> std::io::Result<()> {
                         {
                             Ok(_) => {
                                 let _ = transaction.commit().await;
-                                println!("CREATE users_database_access table DONE");
                             }
                             Err(err) => {
                                 let _ = transaction.rollback().await;
-                                panic!("CREATE users_database_access table ERROR={}", err);
+                                panic!("Error: {}", err);
                             }
                         }
                     }
                     Err(err) => {
                         let _ = transaction.rollback().await;
-                        panic!("CREATE users table ERROR={}", err);
+                        panic!("Error: {}", err);
                     }
                 }
             }
-            Err(error) => panic!("CREATE DB ERROR={}", error),
+            Err(err) => panic!("Error: {}", err),
         }
     }
 
-    let args: Vec<String> = env::args().collect();
+    pub async fn create_database(&self, database_name: &str) {
+        if !database_name.eq("") {
+            let db_name: String = database_name
+                .chars()
+                .map(|x| match x {
+                    // '-' => '_',
+                    '!'..='/' => '\0',
+                    ':'..='@' => '\0',
+                    _ => x,
+                })
+                .collect();
+            let trimmed_db_name = db_name.replace("..", "").replace('\0', "");
+            let db_name_hash =
+                base16ct::lower::encode_string(&Sha256::digest(trimmed_db_name.as_bytes()));
 
+            let consumer_db_full_path_string = format!(
+                "{}/{}",
+                self.consumer_db_path.to_str().unwrap(),
+                db_name_hash
+            );
+            let consumer_db_full_path = Path::new(&consumer_db_full_path_string);
+
+            if !consumer_db_full_path.exists() {
+                let _ = fs::create_dir_all(&consumer_db_full_path);
+            }
+
+            let consumer_db = format!("{}/{}.db", consumer_db_full_path_string, db_name_hash);
+
+            if !Sqlite::database_exists(&consumer_db).await.unwrap_or(false) {
+                match Sqlite::create_database(&consumer_db).await {
+                    Ok(_) => {
+                        println!(
+                            "Successfully created db {} as {}",
+                            trimmed_db_name, db_name_hash
+                        );
+                        let _ = fs::write(
+                            format!("{}/{}", consumer_db_full_path_string, trimmed_db_name),
+                            db_name_hash,
+                        );
+                    }
+                    Err(error) => panic!("Error: {}", error),
+                }
+            } else {
+                println!("Database already exists");
+            }
+        }
+    }
+
+    pub async fn create_user(&self, username: &str, password: &str) {
+        if !username.eq("") && !password.eq("") {
+            let username_hash =
+                base16ct::lower::encode_string(&Sha256::digest(username.as_bytes()));
+            let username_password_hash = base16ct::lower::encode_string(&Sha256::digest(
+                format!("{}{}", username, password).as_bytes(),
+            ));
+
+            let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db))
+                .await
+                .unwrap();
+            let mut transaction = pool.begin().await.unwrap();
+
+            let _ = match execute_query(
+                AppliedQuery::new(queries::INSERT_USER).with_args(vec![
+                    QueryArg::String(username),
+                    QueryArg::String(&username_hash),
+                    QueryArg::String(&username_password_hash),
+                ]),
+                &mut *transaction,
+            )
+            .await
+            {
+                Ok(_) => transaction.commit().await,
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    panic!("Error: {}", err);
+                }
+            };
+        } else {
+            panic!("Error: Must provide username and password");
+        }
+    }
+
+    pub async fn modify_user_access(&self, username: &str, database_name: &str, access_right: i32) {
+        if !username.eq("") && !database_name.eq("") && access_right != 0 {
+            let username_hash =
+                base16ct::lower::encode_string(&Sha256::digest(username.as_bytes()));
+            let database_name_hash =
+                base16ct::lower::encode_string(&Sha256::digest(database_name.as_bytes()));
+
+            let pool = SqlitePool::connect(&format!("sqlite:{}", self.user_db))
+                .await
+                .unwrap();
+            let mut transaction = pool.begin().await.unwrap();
+
+            let _ = match execute_query(
+                AppliedQuery::new(queries::UPSERT_USER_DATABASE_ACCESS).with_args(vec![
+                    QueryArg::String(database_name),
+                    QueryArg::String(&database_name_hash),
+                    QueryArg::Int(access_right),
+                    QueryArg::String(&username_hash),
+                ]),
+                &mut *transaction,
+            )
+            .await
+            {
+                Ok(_) => {
+                    let _ = transaction.commit().await;
+                }
+                Err(err) => {
+                    let _ = transaction.rollback().await;
+                    panic!("Error: {}", err);
+                }
+            };
+        } else {
+            panic!("Error: Must provide username, database and access right(1-3)");
+        }
+    }
+}
+
+// DEFAULTS:
+//  (root path) $HOME/.serf/
+//  (cfg path) $HOME/.serf/cfg/
+//  (users db path) $HOME/.serf/cfg/{hashed}/
+//      then {hashed}.db file is the users db
+//  (db paths) $HOME/.serf/db/{hashed}/
+//      folder is a sha256 hash of the db name
+//      containing {hashed}.db file
+
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    let database_manager = DatabaseManager::new();
+    if !Sqlite::database_exists(&database_manager.user_db)
+        .await
+        .unwrap_or(false)
+    {
+        database_manager.init().await
+    }
+
+    let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
         let command = args[1].as_str();
         let sub_command = args[2].as_str();
         let args_split = args.clone().split_off(3);
 
-        if command.eq("add") {
-            if sub_command.eq("user") {
-                let u = get_flag_val::<String>(&args_split, "-u").unwrap();
-                let up = get_flag_val::<String>(&args_split, "-p").unwrap();
-                let udb = get_flag_val::<String>(&args_split, "-d").unwrap();
-                let udba = get_flag_val::<i32>(&args_split, "-a").unwrap();
-
-                if !u.eq("") && !up.eq("") && !udb.eq("") && udba != 0 {
-                    let u_res = base16ct::lower::encode_string(&Sha256::digest(u.as_bytes()));
-                    let up_res = base16ct::lower::encode_string(&Sha256::digest(
-                        format!("{}{}", u, up).as_bytes(),
-                    ));
-                    let udb_res = base16ct::lower::encode_string(&Sha256::digest(udb.as_bytes()));
-
-                    println!("{}|{}|{}|{}", u, u_res, up_res, udb_res);
-
-                    let pool = SqlitePool::connect(&format!("sqlite:{}", user_db))
-                        .await
-                        .unwrap();
-                    let mut transaction = pool.begin().await.unwrap();
-
-                    match execute_query(
-                        AppliedQuery::new(queries::INSERT_USER).with_args(vec![
-                            QueryArg::String(u.as_str()),
-                            QueryArg::String(u_res.as_str()),
-                            QueryArg::String(up_res.as_str()),
-                        ]),
-                        &mut *transaction,
-                    )
-                    .await
-                    {
-                        Ok(_) => {
-                            match execute_query(
-                                AppliedQuery::new(queries::INSERT_USER_DATABASE_ACCESS).with_args(
-                                    vec![
-                                        QueryArg::String(udb_res.as_str()),
-                                        QueryArg::Int(udba),
-                                        QueryArg::String(u_res.as_str()),
-                                    ],
-                                ),
-                                &mut *transaction,
-                            )
-                            .await
-                            {
-                                Ok(_) => {
-                                    let _ = transaction.commit().await;
-                                    println!("INSERT INTO users_database_access OK");
-                                }
-                                Err(err) => {
-                                    let _ = transaction.rollback().await;
-                                    panic!("ERROR={}", err);
-                                }
-                            }
-                            println!("INSERT INTO users OK");
-                        }
-                        Err(err) => {
-                            let _ = transaction.rollback().await;
-                            panic!("ERROR={}", err);
-                        }
-                    };
-                }
-            }
-        } else if command.eq("create") {
+        if command.eq("create") {
             if sub_command.eq("database") {
                 let db = get_flag_val::<String>(&args_split, "-db").unwrap();
+                database_manager.create_database(&db).await;
+            }
 
-                if !db.eq("") {
-                    let db_name: String = db
-                        .chars()
-                        .map(|x| match x {
-                            // '-' => '_',
-                            '!'..='/' => '\0',
-                            ':'..='@' => '\0',
-                            _ => x,
-                        })
-                        .collect();
-                    println!("{}: {:?}", db_name.len(), db_name);
+            if sub_command.eq("user") {
+                let username = get_flag_val::<String>(&args_split, "-u").unwrap();
+                let password = get_flag_val::<String>(&args_split, "-p").unwrap();
 
-                    let trimmed_db_name = db_name.replace("..", "").replace('\0', "");
-                    println!("{}: {:?}", trimmed_db_name.len(), trimmed_db_name);
-                    let db_name_hash =
-                        base16ct::lower::encode_string(&Sha256::digest(trimmed_db_name.as_bytes()));
+                database_manager.create_user(&username, &password).await;
+            }
+        } else if command.eq("modify") {
+            if sub_command.eq("user") {
+                let sub_command_two = args[3].as_str();
+                if sub_command_two.eq("access") {
+                    let username = get_flag_val::<String>(&args_split, "-u").unwrap();
+                    let database = get_flag_val::<String>(&args_split, "-db").unwrap();
+                    let access_right = get_flag_val::<i32>(&args_split, "-a").unwrap();
 
-                    let consumer_db_full_path_string =
-                        format!("{}/{}", consumer_db_path.to_str().unwrap(), db_name_hash);
-                    let consumer_db_full_path = Path::new(&consumer_db_full_path_string);
-                    println!("after format {}", consumer_db_full_path_string);
-
-                    if !consumer_db_full_path.exists() {
-                        let _ = create_dir_all(&consumer_db_full_path);
-                    }
-
-                    let consumer_db =
-                        format!("{}/{}.db", consumer_db_full_path_string, db_name_hash);
-
-                    if !Sqlite::database_exists(&consumer_db).await.unwrap_or(false) {
-                        println!("Creating database {}", &consumer_db);
-
-                        match Sqlite::create_database(&consumer_db).await {
-                            Ok(_) => println!("Create db success"),
-                            Err(error) => panic!("error: {}", error),
-                        }
-                    } else {
-                        println!("Database already exists");
-                    }
+                    database_manager
+                        .modify_user_access(&username, &database, access_right)
+                        .await;
                 }
             }
         }
