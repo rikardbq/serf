@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::{env, path::PathBuf};
 
+use regex::Regex;
 use sha2::{Digest, Sha256};
 use sqlite_server::core::{
     constants::queries,
@@ -91,50 +92,39 @@ impl DatabaseManager {
         }
     }
 
-    pub async fn create_database(&self, database_name: &str) {
-        if !database_name.eq("") {
-            let db_name: String = database_name
-                .chars()
-                .map(|x| match x {
-                    // '-' => '_',
-                    '!'..='/' => '\0',
-                    ':'..='@' => '\0',
-                    _ => x,
-                })
-                .collect();
-            let trimmed_db_name = db_name.replace("..", "").replace('\0', "");
-            let db_name_hash =
-                base16ct::lower::encode_string(&Sha256::digest(trimmed_db_name.as_bytes()));
+    pub async fn create_database(&self, db_name: &str) {
+        if !db_name.eq("") {
+            let regex = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
+            if !regex.is_match(db_name) {
+                panic!("Error: Database name format must follow either one or a combination of the patterns [a-z, A-Z, 0-9, _, -]");
+            }
 
+            let db_name_hash = base16ct::lower::encode_string(&Sha256::digest(db_name.as_bytes()));
             let consumer_db_full_path_string = format!(
                 "{}/{}",
                 self.consumer_db_base_path.to_str().unwrap(),
                 db_name_hash
             );
             let consumer_db_full_path = Path::new(&consumer_db_full_path_string);
+            let consumer_db = format!("{}/{}.db", consumer_db_full_path_string, db_name_hash);
 
             if !consumer_db_full_path.exists() {
                 let _ = fs::create_dir_all(&consumer_db_full_path);
             }
 
-            let consumer_db = format!("{}/{}.db", consumer_db_full_path_string, db_name_hash);
-
             if !Sqlite::database_exists(&consumer_db).await.unwrap_or(false) {
                 match Sqlite::create_database(&consumer_db).await {
                     Ok(_) => {
-                        println!(
-                            "Successfully created db {} as {}",
-                            trimmed_db_name, db_name_hash
-                        );
+                        println!("Successfully created db {} as {}", db_name, db_name_hash);
                         let _ = fs::write(
-                            format!("{}/{}", consumer_db_full_path_string, trimmed_db_name),
+                            format!("{}/{}", consumer_db_full_path_string, db_name),
                             db_name_hash,
                         );
                     }
-                    Err(error) => panic!("Error: {}", error),
+                    Err(err) => panic!("Error: {}", err),
                 }
             } else {
-                println!("Database already exists");
+                panic!("Error: Database already exists");
             }
         }
     }
@@ -169,7 +159,7 @@ impl DatabaseManager {
                 }
             };
         } else {
-            panic!("Error: Must provide username and password");
+            panic!("Error: Must provide username and password with flags [-u, -p]");
         }
     }
 
@@ -205,7 +195,7 @@ impl DatabaseManager {
                 }
             };
         } else {
-            panic!("Error: Must provide username, database and access right(1-3)");
+            panic!("Error: Must provide username, database and access right(1-3) with flags [-u, -db, -a]");
         }
     }
 }
@@ -218,7 +208,6 @@ impl DatabaseManager {
 //  (db paths) $HOME/.serf/db/{hashed}/
 //      folder is a sha256 hash of the db name
 //      containing {hashed}.db file
-
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let database_manager = DatabaseManager::new();
@@ -247,8 +236,11 @@ async fn main() -> std::io::Result<()> {
                         let username = get_flag_val::<String>(&args_split, "-u").unwrap();
                         let password = get_flag_val::<String>(&args_split, "-p").unwrap();
                         database_manager.create_user(&username, &password).await;
-                    },
-                    _ => panic!("Error: Unknown command {}, supported commands are [database, user]", cmd_two)
+                    }
+                    _ => panic!(
+                        "Error: Unknown command {}, supported commands are [database, user]",
+                        cmd_two
+                    ),
                 }
             }
             "modify" => match cmd_two {
@@ -265,13 +257,22 @@ async fn main() -> std::io::Result<()> {
                             database_manager
                                 .modify_user_access(&username, &database, access_right)
                                 .await;
-                        },
-                        _ => panic!("Error: Unknown command {}, supported commands are [access]", cmd_three)
+                        }
+                        _ => panic!(
+                            "Error: Unknown command {}, supported commands are [access]",
+                            cmd_three
+                        ),
                     }
-                },
-                _ => panic!("Error: Unknown command {}, supported commands are [user]", cmd_two)
+                }
+                _ => panic!(
+                    "Error: Unknown command {}, supported commands are [user]",
+                    cmd_two
+                ),
             },
-            _ => panic!("Error: Unknown command {}, supported commands are [create, modify]", cmd_one)
+            _ => panic!(
+                "Error: Unknown command {}, supported commands are [create, modify]",
+                cmd_one
+            ),
         }
     }
 
