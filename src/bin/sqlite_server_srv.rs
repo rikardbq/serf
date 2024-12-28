@@ -46,8 +46,6 @@ async fn main() -> std::io::Result<()> {
 
     pool.close().await;
 
-    let usr_map: papaya::HashMap<String, Usr> = papaya::HashMap::new();
-    let usr_map_ref = usr_map.pin();
     let users_map: papaya::HashMap<String, User> = papaya::HashMap::new();
     let users_map_pin = users_map.pin();
 

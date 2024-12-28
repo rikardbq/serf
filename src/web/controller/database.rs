@@ -79,7 +79,7 @@ async fn handle_db_post(
             }
         };
 
-    let token = match generate_token(query_result_claims, &user_entry.up_hash) {
+    let token = match generate_token(data, &user_entry.username_password_hash) {
         Ok(t) => t,
         Err(err) => {
             return HttpResponse::InternalServerError()
