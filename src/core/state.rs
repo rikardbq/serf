@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use papaya::{Guard, HashMap, HashSet};
 use sqlx::SqlitePool;
 
 pub type DatabaseConnections = Arc<HashMap<String, SqlitePool>>;
