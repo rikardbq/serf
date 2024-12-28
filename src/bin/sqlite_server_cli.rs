@@ -248,7 +248,7 @@ async fn main() -> std::io::Result<()> {
                         let password = get_flag_val::<String>(&args_split, "-p").unwrap();
                         database_manager.create_user(&username, &password).await;
                     },
-                    _ => panic!("Error: Unknown command, supported commands are [database, user]")
+                    _ => panic!("Error: Unknown command {}, supported commands are [database, user]", cmd_two)
                 }
             }
             "modify" => match cmd_two {
@@ -266,12 +266,12 @@ async fn main() -> std::io::Result<()> {
                                 .modify_user_access(&username, &database, access_right)
                                 .await;
                         },
-                        _ => panic!("Error: Unknown command, supported commands are [access]")
+                        _ => panic!("Error: Unknown command {}, supported commands are [access]", cmd_three)
                     }
                 },
-                _ => panic!("Error: Unknown command, supported commands are [user]")
+                _ => panic!("Error: Unknown command {}, supported commands are [user]", cmd_two)
             },
-            _ => panic!("Error: Unknown command, supported commands are [create, modify]")
+            _ => panic!("Error: Unknown command {}, supported commands are [create, modify]", cmd_one)
         }
     }
 
