@@ -24,9 +24,6 @@ async fn main() -> std::io::Result<()> {
 
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        port = get_flag_val::<u16>(&args, "--port").unwrap_or_default();
-        db_max_conn = get_flag_val::<u32>(&args, "--db-max-conn").unwrap_or_default();
-        db_max_idle_time = get_flag_val::<u64>(&args, "--db-max-idle-time").unwrap_or_default();
         port = get_flag_val::<u16>(&args, "--port").unwrap_or(DEFAULT_PORT);
         db_max_conn = get_flag_val::<u32>(&args, "--db-max-conn").unwrap_or(DEFAULT_DB_MAX_CONN);
         db_max_idle_time =
