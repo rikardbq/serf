@@ -8,7 +8,7 @@ use crate::{
         },
         db::{execute_query, fetch_all_as_json, AppliedQuery, QueryArg},
         state::AppState,
-        util::{get_db_connections, get_user_entry_and_access, Error},
+        util::{get_db_connections, get_user_entry_and_access, get_query_result_claims, Error},
     },
     web::{
         jwt::{decode_token, generate_claims, generate_token, RequestMigration, RequestQuery, Sub},
@@ -79,7 +79,7 @@ async fn handle_db_post(
             }
         };
 
-    let token = match generate_token(data, &user_entry.username_password_hash) {
+    let token = match generate_token(query_result_claims, &user_entry.username_password_hash) {
         Ok(t) => t,
         Err(err) => {
             return HttpResponse::InternalServerError()
