@@ -229,26 +229,27 @@ async fn main() -> std::io::Result<()> {
 
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        let command = args[1].as_str();
-        let sub_command = args[2].as_str();
-        let args_split = args.clone().split_off(3);
-
-        if command.eq("create") {
-            if sub_command.eq("database") {
+        let cmd_one = args[1].as_str();
+        let cmd_two = args[2].as_str();
+        
+        if cmd_one.eq("create") {
+            let args_split = args.clone().split_off(3);
+            if cmd_two.eq("database") {
                 let db = get_flag_val::<String>(&args_split, "-db").unwrap();
                 database_manager.create_database(&db).await;
             }
 
-            if sub_command.eq("user") {
+            if cmd_two.eq("user") {
                 let username = get_flag_val::<String>(&args_split, "-u").unwrap();
                 let password = get_flag_val::<String>(&args_split, "-p").unwrap();
 
                 database_manager.create_user(&username, &password).await;
             }
-        } else if command.eq("modify") {
-            if sub_command.eq("user") {
-                let sub_command_two = args[3].as_str();
-                if sub_command_two.eq("access") {
+        } else if cmd_one.eq("modify") {
+            if cmd_two.eq("user") {
+                let cmd_three = args[3].as_str();
+                let args_split = args.clone().split_off(4);
+                if cmd_three.eq("access") {
                     let username = get_flag_val::<String>(&args_split, "-u").unwrap();
                     let database = get_flag_val::<String>(&args_split, "-db").unwrap();
                     let access_right = get_flag_val::<i32>(&args_split, "-a").unwrap();
