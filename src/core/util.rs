@@ -2,7 +2,7 @@ use core::str;
 use std::sync::Arc;
 use std::time::Duration;
 
-use actix_web::web;
+use actix_web::{http::header::HeaderValue, web};
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
 
@@ -165,4 +165,18 @@ pub async fn get_query_result_claims<'a>(
     };
 
     response_claims_result
+}
+
+pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, &str> {
+    let header_value = match header {
+        Some(hdr) => {
+            match hdr.to_str() {
+                Ok(hdr_val) => hdr_val,
+                Err(_) => errors::ERROR_MALFORMED_HEADER
+            }
+        },
+        None => errors::ERROR_MISSING_HEADER,
+    };
+
+    Ok(header_value)
 }

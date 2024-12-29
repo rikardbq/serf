@@ -3,7 +3,10 @@ use std::sync::Arc;
 use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
-    core::state::{AppState, User},
+    core::{
+        state::{AppState, User},
+        util::get_header_value,
+    },
     web::{
         jwt::{decode_token, generate_claims, generate_token, verify_token, Sub},
         request::{RequestBody, ResponseResult},
@@ -22,18 +25,17 @@ async fn handle_generate_token(
     data: web::Data<AppState>,
     req_body: String,
 ) -> impl Responder {
-    let header_u_ = match req.headers().get("u_") {
-        Some(hdr) => hdr.to_str().unwrap(),
-        _ => {
-            return HttpResponse::BadRequest()
-                .json(ResponseResult::new().error("ERROR=MissingHeader/s[ u_ ]"));
+    let header_username_hash = match get_header_value(req.headers().get("u_")) {
+        Ok(header_val) => header_val,
+        Err(err) => {
+            return HttpResponse::BadRequest().json(ResponseResult::new().error(err));
         }
     };
 
     // get the users data
     let users_clone: Arc<papaya::HashMap<String, User>> = Arc::clone(&data.users);
     let users = users_clone.pin();
-    let user_entry_for_id = match users.get(header_u_) {
+    let user_entry_for_id = match users.get(header_username_hash) {
         Some(u) => u,
         None => {
             return HttpResponse::Unauthorized()
@@ -53,18 +55,17 @@ pub async fn handle_verify_token(
     data: web::Data<AppState>,
     req_body: web::Json<RequestBody>,
 ) -> impl Responder {
-    let header_u_ = match req.headers().get("u_") {
-        Some(hdr) => hdr.to_str().unwrap(),
-        _ => {
-            return HttpResponse::BadRequest()
-                .json(ResponseResult::new().error("ERROR=MissingHeader/s[ u_ ]"));
+    let header_username_hash = match get_header_value(req.headers().get("u_")) {
+        Ok(header_val) => header_val,
+        Err(err) => {
+            return HttpResponse::BadRequest().json(ResponseResult::new().error(err));
         }
     };
 
     // get the users data
     let users_clone: Arc<papaya::HashMap<String, User>> = Arc::clone(&data.users);
     let users = users_clone.pin();
-    let user_entry_for_id = match users.get(header_u_) {
+    let user_entry_for_id = match users.get(header_username_hash) {
         Some(u) => u,
         None => {
             return HttpResponse::Unauthorized()
@@ -85,18 +86,17 @@ pub async fn handle_decode_token(
     data: web::Data<AppState>,
     req_body: web::Json<RequestBody>,
 ) -> impl Responder {
-    let header_u_ = match req.headers().get("u_") {
-        Some(hdr) => hdr.to_str().unwrap(),
-        _ => {
-            return HttpResponse::BadRequest()
-                .json(ResponseResult::new().error("ERROR=MissingHeader/s[ u_ ]"));
+    let header_username_hash = match get_header_value(req.headers().get("u_")) {
+        Ok(header_val) => header_val,
+        Err(err) => {
+            return HttpResponse::BadRequest().json(ResponseResult::new().error(err));
         }
     };
 
     // get the users data
     let users_clone: Arc<papaya::HashMap<String, User>> = Arc::clone(&data.users);
     let users = users_clone.pin();
-    let user_entry_for_id = match users.get(header_u_) {
+    let user_entry_for_id = match users.get(header_username_hash) {
         Some(u) => u,
         None => {
             return HttpResponse::Unauthorized()

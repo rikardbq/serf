@@ -6,12 +6,15 @@ use crate::{
             errors::{self, ErrorReason},
             queries,
         },
-        db::{execute_query, fetch_all_as_json, AppliedQuery, QueryArg},
+        db::{execute_query, AppliedQuery, QueryArg},
         state::AppState,
-        util::{get_db_connections, get_user_entry_and_access, get_query_result_claims, Error},
+        util::{
+            get_db_connections, get_header_value, get_query_result_claims,
+            get_user_entry_and_access,
+        },
     },
     web::{
-        jwt::{decode_token, generate_claims, generate_token, RequestMigration, RequestQuery, Sub},
+        jwt::{decode_token, generate_claims, generate_token, RequestMigration, Sub},
         request::{RequestBody, ResponseResult},
     },
 };
@@ -28,20 +31,16 @@ async fn handle_db_post(
     path: web::Path<String>,
     req_body: web::Json<RequestBody>,
 ) -> impl Responder {
-    let header_u_ = match req.headers().get("u_") {
-        Some(hdr) => hdr.to_str().unwrap(),
-        _ => {
-            return HttpResponse::BadRequest().json(ResponseResult::new().error(format!(
-                "{} [ {} ]",
-                errors::ERROR_MISSING_HEADER,
-                "u_"
-            )));
+    let header_username_hash = match get_header_value(req.headers().get("u_")) {
+        Ok(header_val) => header_val,
+        Err(err) => {
+            return HttpResponse::BadRequest().json(ResponseResult::new().error(err));
         }
     };
 
     let db_name = path.into_inner();
     let (user_entry, user_access) =
-        match get_user_entry_and_access(&data, header_u_, &db_name) {
+        match get_user_entry_and_access(&data, header_username_hash, &db_name) {
             Ok(ue) => ue,
             Err(err) => return HttpResponse::Unauthorized().json(ResponseResult::new().error(err)),
         };
@@ -97,20 +96,16 @@ async fn handle_db_migration_post(
     path: web::Path<String>,
     req_body: web::Json<RequestBody>,
 ) -> impl Responder {
-    let header_u_ = match req.headers().get("u_") {
-        Some(hdr) => hdr.to_str().unwrap(),
-        _ => {
-            return HttpResponse::BadRequest().json(ResponseResult::new().error(format!(
-                "{} [ {} ]",
-                errors::ERROR_MISSING_HEADER,
-                "u_"
-            )));
+    let header_username_hash = match get_header_value(req.headers().get("u_")) {
+        Ok(header_val) => header_val,
+        Err(err) => {
+            return HttpResponse::BadRequest().json(ResponseResult::new().error(err));
         }
     };
 
     let db_name = path.into_inner();
     let (user_entry, user_access) =
-        match get_user_entry_and_access(&data, header_u_, &db_name) {
+        match get_user_entry_and_access(&data, header_username_hash, &db_name) {
             Ok(ue) => ue,
             Err(err) => return HttpResponse::Unauthorized().json(ResponseResult::new().error(err)),
         };
