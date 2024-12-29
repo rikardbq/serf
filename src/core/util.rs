@@ -168,15 +168,11 @@ pub async fn get_query_result_claims<'a>(
 }
 
 pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, &str> {
-    let header_value = match header {
-        Some(hdr) => {
-            match hdr.to_str() {
-                Ok(hdr_val) => hdr_val,
-                Err(_) => errors::ERROR_MALFORMED_HEADER
-            }
+    match header {
+        Some(hdr) => match hdr.to_str() {
+            Ok(hdr_val) => Ok(hdr_val),
+            Err(_) => Err(errors::ERROR_MALFORMED_HEADER),
         },
-        None => errors::ERROR_MISSING_HEADER,
-    };
-
-    Ok(header_value)
+        None => Err(errors::ERROR_MISSING_HEADER),
+    }
 }
