@@ -41,11 +41,10 @@ impl User {
         self.db_access_rights.guard()
     }
 
-    pub fn get_access_right<'guard>(
-        &self,
-        db_name: &str,
-        guard: &'guard impl Guard,
-    ) -> Option<&'guard u8> {
-        Some(self.db_access_rights.get(db_name, guard)?)
+    pub fn get_access_right(&self, db_name: &str) -> u8 {
+        match self.db_access_rights.pin().get(db_name) {
+            Some(ar) => *ar,
+            None => 0,
+        }
     }
 }

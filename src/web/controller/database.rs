@@ -10,7 +10,6 @@ use crate::{
         state::AppState,
         util::{
             get_db_connections, get_header_value, get_query_result_claims,
-            get_user_entry_and_access,
         },
     },
     web::{
@@ -33,20 +32,21 @@ async fn handle_db_post(
 ) -> impl Responder {
     let header_username_hash = match get_header_value(req.headers().get("u_")) {
         Ok(header_val) => header_val,
-        Err(err) => {
-            return HttpResponse::BadRequest().json(ResponseResult::new().error(err));
-        }
+        Err(err) => return HttpResponse::BadRequest().json(ResponseResult::new().error(err)),
     };
 
     let db_name = path.into_inner();
-    let (user_entry, user_access) =
-        match get_user_entry_and_access(&data, header_username_hash, &db_name) {
-            Ok(ue) => ue,
-            Err(err) => return HttpResponse::Unauthorized().json(ResponseResult::new().error(err)),
-        };
+    let users_guard = data.users_guard();
+    let user = match data.get_user(header_username_hash, &users_guard) {
+        Some(u) => u,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ResponseResult::new().error(errors::ERROR_UNKNOWN_USER))
+        }
+    };
 
     let payload_token = &req_body.payload;
-    let decoded_token = match decode_token(&payload_token, &user_entry.username_password_hash) {
+    let decoded_token = match decode_token(&payload_token, &user.username_password_hash) {
         Ok(dec) => dec,
         Err(err) => {
             return HttpResponse::NotAcceptable()
@@ -60,7 +60,7 @@ async fn handle_db_post(
     };
 
     let query_result_claims =
-        match get_query_result_claims(decoded_token.claims, user_access, &db).await {
+        match get_query_result_claims(decoded_token.claims, user.get_access_right(&db_name), &db).await {
             Ok(res) => res,
             Err(err) => {
                 if let Some(reason) = err.reason {
@@ -78,7 +78,7 @@ async fn handle_db_post(
             }
         };
 
-    let token = match generate_token(query_result_claims, &user_entry.username_password_hash) {
+    let token = match generate_token(query_result_claims, &user.username_password_hash) {
         Ok(t) => t,
         Err(err) => {
             return HttpResponse::InternalServerError()
@@ -104,19 +104,22 @@ async fn handle_db_migration_post(
     };
 
     let db_name = path.into_inner();
-    let (user_entry, user_access) =
-        match get_user_entry_and_access(&data, header_username_hash, &db_name) {
-            Ok(ue) => ue,
-            Err(err) => return HttpResponse::Unauthorized().json(ResponseResult::new().error(err)),
-        };
+    let users_guard = data.users_guard();
+    let user = match data.get_user(header_username_hash, &users_guard) {
+        Some(u) => u,
+        None => {
+            return HttpResponse::Unauthorized()
+                .json(ResponseResult::new().error(errors::ERROR_UNKNOWN_USER))
+        }
+    };
 
-    if user_access < 2 {
+    if user.get_access_right(&db_name) < 2 {
         return HttpResponse::Forbidden()
             .json(ResponseResult::new().error(errors::ERROR_USER_NOT_ALLOWED));
     }
 
     let payload_token = &req_body.payload;
-    let decoded_token = match decode_token(&payload_token, &user_entry.username_password_hash) {
+    let decoded_token = match decode_token(&payload_token, &user.username_password_hash) {
         Ok(dec) => dec,
         Err(err) => {
             return HttpResponse::NotAcceptable()
@@ -183,7 +186,7 @@ async fn handle_db_migration_post(
             generate_claims(false.to_string(), Sub::DATA)
         }
     };
-    let token = generate_token(res, &user_entry.username_password_hash).unwrap();
+    let token = generate_token(res, &user.username_password_hash).unwrap();
 
     HttpResponse::Ok().json(ResponseResult::new().payload(token))
 }

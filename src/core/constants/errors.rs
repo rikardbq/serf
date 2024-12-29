@@ -10,7 +10,6 @@ pub enum ErrorReason {
 }
 
 pub const ERROR_USER_NOT_ALLOWED: &str = "ERROR=UserNotAllowed";
-pub const ERROR_USER_NO_DATABASE_ACCESS: &str = "ERROR=UserNoDatabaseAccess";
 pub const ERROR_UNKNOWN_USER: &str = "ERROR=UnknownUser";
 pub const ERROR_INVALID_SUBJECT: &str = "ERROR=InvalidSubject";
 pub const ERROR_INVALID_ISSUER: &str = "ERROR=InvalidIssuer";

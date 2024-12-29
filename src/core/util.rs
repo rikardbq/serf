@@ -11,7 +11,7 @@ use crate::web::jwt::{generate_claims, Claims, RequestQuery, Sub};
 use super::{
     constants::errors::{self, ErrorReason},
     db::{execute_query, fetch_all_as_json, AppliedQuery},
-    state::{AppState, User},
+    state::AppState,
 };
 
 pub struct Error<'a> {
@@ -58,26 +58,6 @@ where
     }
 
     res
-}
-
-pub fn get_user_entry_and_access<'a>(
-    data: &'a web::Data<AppState>,
-    header_u_: &'a str,
-    db_name: &'a str,
-) -> Result<(User, u8), &'a str> {
-    let users_clone: Arc<papaya::HashMap<String, User>> = Arc::clone(&data.users);
-    let users = users_clone.pin();
-
-    match users.get(header_u_) {
-        Some(u) => {
-            let db_access_rights_pin = u.db_access_rights.pin();
-            match db_access_rights_pin.get(db_name) {
-                Some(ar) => Ok((u.to_owned(), *ar)),
-                None => Err(errors::ERROR_USER_NO_DATABASE_ACCESS),
-            }
-        }
-        None => Err(errors::ERROR_UNKNOWN_USER),
-    }
 }
 
 pub async fn get_db_connections<'a>(
