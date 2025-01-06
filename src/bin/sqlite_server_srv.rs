@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
 use papaya::HashMap;
-use sqlite_server::core::constants::queries;
+use sqlite_server::core::constants::{cli, queries};
 use sqlite_server::core::db::{fetch_all_as_json, AppliedQuery};
 use sqlite_server::core::state::{AppState, User};
 use sqlite_server::core::util::get_flag_val;
@@ -12,22 +12,19 @@ use sqlx::SqlitePool;
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
-const DEFAULT_PORT: u16 = 8080;
-const DEFAULT_DB_MAX_CONN: u32 = 12;
-const DEFAULT_DB_MAX_IDLE_TIME: u64 = 3600;
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let mut port = DEFAULT_PORT;
-    let mut db_max_conn = DEFAULT_DB_MAX_CONN;
-    let mut db_max_idle_time = DEFAULT_DB_MAX_IDLE_TIME;
+    let mut port = cli::DEFAULT_PORT;
+    let mut db_max_conn = cli::DEFAULT_DB_MAX_CONN;
+    let mut db_max_idle_time = cli::DEFAULT_DB_MAX_IDLE_TIME;
 
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        port = get_flag_val::<u16>(&args, "--port").unwrap_or(DEFAULT_PORT);
-        db_max_conn = get_flag_val::<u32>(&args, "--db-max-conn").unwrap_or(DEFAULT_DB_MAX_CONN);
-        db_max_idle_time =
-            get_flag_val::<u64>(&args, "--db-max-idle-time").unwrap_or(DEFAULT_DB_MAX_IDLE_TIME);
+        port = get_flag_val::<u16>(&args, cli::PORT_FLAG).unwrap_or(cli::DEFAULT_PORT);
+        db_max_conn =
+            get_flag_val::<u32>(&args, cli::DB_MAX_CONN_FLAG).unwrap_or(cli::DEFAULT_DB_MAX_CONN);
+        db_max_idle_time = get_flag_val::<u64>(&args, cli::DB_MAX_IDLE_TIME_FLAG)
+            .unwrap_or(cli::DEFAULT_DB_MAX_IDLE_TIME);
     }
 
     let root_dir = Path::new(ROOT_DIR);
