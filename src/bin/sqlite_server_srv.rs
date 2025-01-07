@@ -4,10 +4,10 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
 use papaya::HashMap;
+use sqlite_server::cli::util::get_flag_val;
 use sqlite_server::core::constants::{cli, queries};
 use sqlite_server::core::db::{fetch_all_as_json, AppliedQuery};
 use sqlite_server::core::state::{AppState, User};
-use sqlite_server::core::util::get_flag_val;
 use sqlx::SqlitePool;
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
@@ -79,9 +79,14 @@ async fn main() -> std::io::Result<()> {
         db_connections: Arc::new(HashMap::new()),
         users: Arc::new(users_map),
         db_max_connections: db_max_conn,
-        db_max_idle_time: db_max_idle_time,
+        db_max_idle_time,
         db_path: String::from(consumer_db_path.to_str().unwrap()),
     });
+
+    println!(
+        ":::SERVER RUNNING:::\n127.0.0.1\nPORT={}\nDB_MAX_CONN={}\nDB_MAX_IDLE_TIME={}",
+        port, db_max_conn, db_max_idle_time
+    );
 
     HttpServer::new(move || {
         App::new()

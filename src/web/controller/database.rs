@@ -8,13 +8,12 @@ use crate::{
         },
         db::{execute_query, AppliedQuery, QueryArg},
         state::AppState,
-        util::{
-            get_db_connections, get_header_value, get_query_result_claims,
-        },
+        util::get_db_connections,
     },
     web::{
         jwt::{decode_token, generate_claims, generate_token, RequestMigration, Sub},
         request::{RequestBody, ResponseResult},
+        util::{get_header_value, get_query_result_claims},
     },
 };
 
@@ -60,7 +59,9 @@ async fn handle_db_post(
     };
 
     let query_result_claims =
-        match get_query_result_claims(decoded_token.claims, user.get_access_right(&db_name), &db).await {
+        match get_query_result_claims(decoded_token.claims, user.get_access_right(&db_name), &db)
+            .await
+        {
             Ok(res) => res,
             Err(err) => {
                 if let Some(reason) = err.reason {

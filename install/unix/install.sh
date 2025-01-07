@@ -1,13 +1,13 @@
 # INSTALL
 echo "[RUNNING::INSTALL]"
 
-SERF_ROOT_DIR="$HOME/.serf"
-TARGET_DIR="$PWD/target/release"
+export SERF_ROOT_DIR="$HOME/.serf"
+TARGET_DIR="$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")/../../target/release"
 
 while getopts td:rd: flag
 do
     case "${flag}" in
-        rd) SERF_ROOT_DIR=${OPTARG};;
+        rd) export SERF_ROOT_DIR=${OPTARG};;
     esac
 done
 
@@ -27,6 +27,8 @@ fi
 cp -t $SERF_ROOT_DIR $TARGET_DIR/sqlite_server_srv $TARGET_DIR/sqlite_server_cli
 
 echo "[COMPLETE::COPY_EXECUTABLES]"
+
+cargo clean -vv --release
 echo "[COMPLETE::INSTALL]"
 
 exit 0

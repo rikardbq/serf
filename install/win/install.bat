@@ -29,6 +29,8 @@ dir /A:D %SERF_ROOT_DIR% >nul 2>&1 & if ERRORLEVEL 1 (
 copy %TARGET_DIR%\*.exe %SERF_ROOT_DIR%
 
 echo [COMPLETE::COPY_EXECUTABLES]
+
+cargo clean -vv --release
 echo [COMPLETE::INSTALL]
 
 exit /b

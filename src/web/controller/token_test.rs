@@ -3,13 +3,10 @@ use std::sync::Arc;
 use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
-    core::{
-        state::{AppState, User},
-        util::get_header_value,
-    },
+    core::state::{AppState, User},
     web::{
         jwt::{decode_token, generate_claims, generate_token, verify_token, Sub},
-        request::{RequestBody, ResponseResult},
+        request::{RequestBody, ResponseResult}, util::get_header_value,
     },
 };
 
