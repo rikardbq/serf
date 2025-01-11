@@ -3,44 +3,23 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use actix_web::web;
+use papaya::Guard;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
 
-use super::{
-    constants::errors::{self, ErrorReason},
-    state::AppState,
-};
+use crate::core::error::{DatabaseNotExistError, SerfError};
 
-pub struct Error<'a> {
-    pub message: &'a str,
-    pub reason: Option<ErrorReason>,
-}
+use super::error::Error;
+use super::state::AppState;
 
-impl<'a> Error<'a> {
-    pub fn new(message: &'a str) -> Self {
-        Error {
-            message,
-            reason: None,
-        }
-    }
-
-    pub fn with_reason(self, reason: ErrorReason) -> Self {
-        Error {
-            reason: Some(reason),
-            ..self
-        }
-    }
-}
-
-pub async fn get_db_connections<'a>(
+pub async fn get_or_insert_db_connection<'a>(
+    db_connections_guard: &'a impl Guard,
     data: &'a web::Data<AppState>,
     db_name: &'a str,
-) -> Result<SqlitePool, &'a str> {
-    let db_connections_clone: Arc<papaya::HashMap<String, SqlitePool>> =
-        Arc::clone(&data.db_connections);
-    let db_connections = db_connections_clone.pin();
+) -> Result<&'a SqlitePool, Error<'a>> {
+    let db_connections: Arc<papaya::HashMap<String, SqlitePool>> = Arc::clone(&data.db_connections);
 
-    if !db_connections.contains_key(db_name) {
+    if !db_connections.contains_key(db_name, db_connections_guard) {
         println!(
             "Database connection is not opened, trying to open database {}",
             db_name
@@ -54,12 +33,11 @@ pub async fn get_db_connections<'a>(
             ))
             .await
         {
-            db_connections.insert(db_name.to_owned(), pool);
+            db_connections.insert(db_name.to_owned(), pool, db_connections_guard);
         } else {
-            return Err(errors::ERROR_DATABASE_NOT_FOUND);
+            return Err(DatabaseNotExistError::default());
         }
     }
 
-    Ok(db_connections.get(db_name).unwrap().to_owned())
+    Ok(db_connections.get(db_name, db_connections_guard).unwrap())
 }
-

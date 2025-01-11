@@ -3,6 +3,8 @@ use std::sync::Arc;
 use papaya::{Guard, HashMap};
 use sqlx::SqlitePool;
 
+use super::error::{SerfError, Error, UserNotExistError};
+
 pub type DatabaseConnections = Arc<HashMap<String, SqlitePool>>;
 pub type Users = Arc<HashMap<String, User>>;
 
@@ -20,12 +22,19 @@ impl AppState {
         self.users.guard()
     }
 
+    pub fn db_connections_guard(&self) -> impl Guard + '_ {
+        self.db_connections.guard()
+    }
+
     pub fn get_user<'guard>(
         &self,
         username_hash: &str,
         guard: &'guard impl Guard,
-    ) -> Option<&'guard User> {
-        Some(Arc::clone(&self.users).get(username_hash, guard)?)
+    ) -> Result<&'guard User, Error> {
+        match Arc::clone(&self.users).get(username_hash, guard) {
+            Some(u) => Ok(u),
+            None => Err(UserNotExistError::default()),
+        }
     }
 }
 

@@ -2,7 +2,6 @@
 
 :: INSTALL
 echo [RUNNING::INSTALL]
-echo [[ %~f0 ]]
 
 set SERF_ROOT_DIR=%APPDATA%\.serf
 call :ResolvePath TARGET_DIR %~dpn0\..\..\..\target\release

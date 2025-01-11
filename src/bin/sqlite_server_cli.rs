@@ -4,8 +4,6 @@ use sqlite_server::cli::util::{get_flag_val, DatabaseManager};
 use sqlite_server::core::constants::cli;
 use sqlx::{migrate::MigrateDatabase, Sqlite};
 
-// TODO: ADD proper struct for CLI args management
-
 // DEFAULTS:
 //  (root path) $HOME/.serf/
 //  (cfg path) $HOME/.serf/cfg/

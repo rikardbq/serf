@@ -2,13 +2,11 @@ use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
     core::{
-        constants::{
-            errors::{self, ErrorReason},
-            queries,
-        },
+        constants::queries,
         db::{execute_query, AppliedQuery, QueryArg},
+        error::{ErrorKind, SerfError, UndefinedError, UserNotAllowedError},
         state::AppState,
-        util::get_db_connections,
+        util::get_or_insert_db_connection,
     },
     web::{
         jwt::{decode_token, generate_claims, generate_token, RequestMigration, Sub},
@@ -31,31 +29,29 @@ async fn handle_db_post(
 ) -> impl Responder {
     let header_username_hash = match get_header_value(req.headers().get("u_")) {
         Ok(header_val) => header_val,
-        Err(err) => return HttpResponse::BadRequest().json(ResponseResult::new().error(err)),
+        Err(e) => return HttpResponse::BadRequest().json(ResponseResult::new().error(e)),
     };
 
     let db_name = path.into_inner();
     let users_guard = data.users_guard();
     let user = match data.get_user(header_username_hash, &users_guard) {
-        Some(u) => u,
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(ResponseResult::new().error(errors::ERROR_UNKNOWN_USER))
-        }
+        Ok(u) => u,
+        Err(e) => return HttpResponse::Unauthorized().json(ResponseResult::new().error(e)),
     };
 
     let payload_token = &req_body.payload;
     let decoded_token = match decode_token(&payload_token, &user.username_password_hash) {
         Ok(dec) => dec,
-        Err(err) => {
-            return HttpResponse::NotAcceptable()
-                .json(ResponseResult::new().error(&format!("ERROR={:?}", err.kind())))
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .json(ResponseResult::new().error(UndefinedError::default()))
         }
     };
 
-    let db = match get_db_connections(&data, &db_name).await {
+    let db_connections_guard = data.db_connections_guard();
+    let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
         Ok(conn) => conn,
-        Err(err) => return HttpResponse::NotFound().json(ResponseResult::new().error(err)),
+        Err(e) => return HttpResponse::NotFound().json(ResponseResult::new().error(e)),
     };
 
     let query_result_claims =
@@ -63,27 +59,24 @@ async fn handle_db_post(
             .await
         {
             Ok(res) => res,
-            Err(err) => {
-                if let Some(reason) = err.reason {
-                    if reason == ErrorReason::UserNotAllowed {
-                        return HttpResponse::Forbidden()
-                            .json(ResponseResult::new().error(err.message));
-                    } else if reason == ErrorReason::InvalidSubject {
-                        return HttpResponse::NotAcceptable()
-                            .json(ResponseResult::new().error(err.message));
-                    }
+            Err(e) => match e.source {
+                ErrorKind::UserNotAllowed => {
+                    return HttpResponse::Forbidden().json(ResponseResult::new().error(e))
                 }
-
-                return HttpResponse::InternalServerError()
-                    .json(ResponseResult::new().error(err.message));
-            }
+                ErrorKind::SubjectInvalid => {
+                    return HttpResponse::NotAcceptable().json(ResponseResult::new().error(e))
+                }
+                _ => {
+                    return HttpResponse::InternalServerError().json(ResponseResult::new().error(e))
+                }
+            },
         };
 
     let token = match generate_token(query_result_claims, &user.username_password_hash) {
         Ok(t) => t,
-        Err(err) => {
+        Err(_) => {
             return HttpResponse::InternalServerError()
-                .json(ResponseResult::new().error(&format!("ERROR={:?}", err.kind())))
+                .json(ResponseResult::new().error(UndefinedError::default()))
         }
     };
 
@@ -99,44 +92,42 @@ async fn handle_db_migration_post(
 ) -> impl Responder {
     let header_username_hash = match get_header_value(req.headers().get("u_")) {
         Ok(header_val) => header_val,
-        Err(err) => {
-            return HttpResponse::BadRequest().json(ResponseResult::new().error(err));
+        Err(e) => {
+            return HttpResponse::BadRequest().json(ResponseResult::new().error(e));
         }
     };
 
     let db_name = path.into_inner();
     let users_guard = data.users_guard();
     let user = match data.get_user(header_username_hash, &users_guard) {
-        Some(u) => u,
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(ResponseResult::new().error(errors::ERROR_UNKNOWN_USER))
-        }
+        Ok(u) => u,
+        Err(e) => return HttpResponse::Unauthorized().json(ResponseResult::new().error(e)),
     };
 
     if user.get_access_right(&db_name) < 2 {
         return HttpResponse::Forbidden()
-            .json(ResponseResult::new().error(errors::ERROR_USER_NOT_ALLOWED));
+            .json(ResponseResult::new().error(UserNotAllowedError::default()));
     }
 
     let payload_token = &req_body.payload;
     let decoded_token = match decode_token(&payload_token, &user.username_password_hash) {
         Ok(dec) => dec,
-        Err(err) => {
-            return HttpResponse::NotAcceptable()
-                .json(ResponseResult::new().error(&format!("ERROR={:?}", err.kind())))
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .json(ResponseResult::new().error(UndefinedError::default()))
         }
     };
 
-    let db = match get_db_connections(&data, &db_name).await {
+    let db_connections_guard = data.db_connections_guard();
+    let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
         Ok(conn) => conn,
-        Err(err) => return HttpResponse::NotFound().json(ResponseResult::new().error(err)),
+        Err(e) => return HttpResponse::NotFound().json(ResponseResult::new().error(e)),
     };
 
     let claims = decoded_token.claims;
     if claims.sub != Sub::MIGRATE {
-        return HttpResponse::NotAcceptable()
-            .json(ResponseResult::new().error(errors::ERROR_INVALID_SUBJECT));
+        return HttpResponse::InternalServerError()
+            .json(ResponseResult::new().error(UndefinedError::default()));
     }
 
     let migration: RequestMigration = serde_json::from_str(&claims.dat).unwrap();
@@ -163,15 +154,15 @@ async fn handle_db_migration_post(
             .await
             {
                 Ok(_) => {}
-                Err(err) => {
+                Err(e) => {
                     let _ = &mut transaction.rollback().await;
-                    panic!("{err}");
+                    panic!("{e}");
                 }
             }
         }
-        Err(err) => {
+        Err(e) => {
             let _ = &mut transaction.rollback().await;
-            panic!("{err}");
+            panic!("{e}");
         }
     };
 
@@ -181,13 +172,20 @@ async fn handle_db_migration_post(
             let _ = &mut transaction.commit().await;
             generate_claims(true.to_string(), Sub::DATA)
         }
-        Err(err) => {
+        Err(e) => {
             let _ = &mut transaction.rollback().await;
-            println!("{err}");
+            println!("{e}");
             generate_claims(false.to_string(), Sub::DATA)
         }
     };
-    let token = generate_token(res, &user.username_password_hash).unwrap();
+
+    let token = match generate_token(res, &user.username_password_hash) {
+        Ok(t) => t,
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .json(ResponseResult::new().error(UndefinedError::default()));
+        }
+    };
 
     HttpResponse::Ok().json(ResponseResult::new().payload(token))
 }

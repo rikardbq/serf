@@ -2,9 +2,11 @@ use actix_web::http::header::HeaderValue;
 use sqlx::SqlitePool;
 
 use crate::core::{
-    constants::errors::{self, ErrorReason},
     db::{execute_query, fetch_all_as_json, AppliedQuery},
-    util::Error,
+    error::{
+        Error, HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError,
+        UserNotAllowedError,
+    },
 };
 
 use super::jwt::{generate_claims, Claims, RequestQuery, Sub};
@@ -19,7 +21,6 @@ pub async fn get_query_result_claims<'a>(
         Sub::MUTATE => {
             if user_access >= 2 {
                 let mut transaction = db.begin().await.unwrap();
-
                 match execute_query(
                     AppliedQuery::new(&dat.query).with_args(dat.parts),
                     &mut *transaction,
@@ -28,7 +29,6 @@ pub async fn get_query_result_claims<'a>(
                 {
                     Ok(res) => {
                         let _ = &mut transaction.commit().await;
-
                         Ok(generate_claims(
                             serde_json::to_string(&res.rows_affected()).unwrap(),
                             Sub::DATA,
@@ -36,12 +36,11 @@ pub async fn get_query_result_claims<'a>(
                     }
                     Err(_) => {
                         let _ = &mut transaction.rollback().await;
-
-                        Err(Error::new(errors::ERROR_UNSPECIFIED))
+                        Err(UndefinedError::default())
                     }
                 }
             } else {
-                Err(Error::new(errors::ERROR_FORBIDDEN).with_reason(ErrorReason::UserNotAllowed))
+                Err(UserNotAllowedError::default())
             }
         }
         Sub::FETCH => {
@@ -50,27 +49,26 @@ pub async fn get_query_result_claims<'a>(
                     fetch_all_as_json(AppliedQuery::new(&dat.query).with_args(dat.parts), &db)
                         .await
                         .unwrap();
-
                 Ok(generate_claims(
                     serde_json::to_string(&result).unwrap(),
                     Sub::DATA,
                 ))
             } else {
-                Err(Error::new(errors::ERROR_FORBIDDEN).with_reason(ErrorReason::UserNotAllowed))
+                Err(UserNotAllowedError::default())
             }
         }
-        _ => Err(Error::new(errors::ERROR_NOT_ACCEPTABLE).with_reason(ErrorReason::InvalidSubject)),
+        _ => Err(UndefinedError::default()),
     };
 
     response_claims_result
 }
 
-pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, &str> {
+pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, Error> {
     match header {
         Some(hdr) => match hdr.to_str() {
             Ok(hdr_val) => Ok(hdr_val),
-            Err(_) => Err(errors::ERROR_MALFORMED_HEADER),
+            Err(_) => Err(HeaderMalformedError::default()),
         },
-        None => Err(errors::ERROR_MISSING_HEADER),
+        None => Err(HeaderMissingError::default()),
     }
 }

@@ -6,7 +6,8 @@ use crate::{
     core::state::{AppState, User},
     web::{
         jwt::{decode_token, generate_claims, generate_token, verify_token, Sub},
-        request::{RequestBody, ResponseResult}, util::get_header_value,
+        request::{RequestBody, ResponseResult},
+        util::get_header_value,
     },
 };
 
