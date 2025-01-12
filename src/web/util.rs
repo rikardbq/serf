@@ -11,56 +11,69 @@ use crate::core::{
 
 use super::jwt::{generate_claims, Claims, RequestQuery, Sub};
 
+async fn handle_mutate<'a>(
+    dat: RequestQuery<'a>,
+    user_access: u8,
+    db: &'a SqlitePool,
+) -> Result<Claims, Error> {
+    if user_access >= 2 {
+        let mut transaction = db.begin().await.unwrap();
+        match execute_query(
+            AppliedQuery::new(&dat.query).with_args(dat.parts),
+            &mut *transaction,
+        )
+        .await
+        {
+            Ok(res) => {
+                let _ = &mut transaction.commit().await;
+                Ok(generate_claims(
+                    serde_json::to_string(&res.rows_affected()).unwrap(),
+                    Sub::DATA,
+                ))
+            }
+            Err(e) => {
+                let _ = &mut transaction.rollback().await;
+                Err(UndefinedError::with_message(
+                    e.as_database_error().unwrap().message(),
+                ))
+            }
+        }
+    } else {
+        Err(UserNotAllowedError::default())
+    }
+}
+
+async fn handle_fetch<'a>(
+    dat: RequestQuery<'a>,
+    user_access: u8,
+    db: &'a SqlitePool,
+) -> Result<Claims, Error> {
+    if user_access >= 1 {
+        match fetch_all_as_json(AppliedQuery::new(&dat.query).with_args(dat.parts), &db).await {
+            Ok(res) => Ok(generate_claims(
+                serde_json::to_string(&res).unwrap(),
+                Sub::DATA,
+            )),
+            Err(e) => Err(UndefinedError::with_message(
+                e.as_database_error().unwrap().message(),
+            )),
+        }
+    } else {
+        Err(UserNotAllowedError::default())
+    }
+}
+
 pub async fn get_query_result_claims<'a>(
     query_claims: Claims,
     user_access: u8,
     db: &'a SqlitePool,
-) -> Result<Claims, Error<'a>> {
+) -> Result<Claims, Error> {
     let dat: RequestQuery = serde_json::from_str(&query_claims.dat).unwrap();
-    let response_claims_result = match query_claims.sub {
-        Sub::MUTATE => {
-            if user_access >= 2 {
-                let mut transaction = db.begin().await.unwrap();
-                match execute_query(
-                    AppliedQuery::new(&dat.query).with_args(dat.parts),
-                    &mut *transaction,
-                )
-                .await
-                {
-                    Ok(res) => {
-                        let _ = &mut transaction.commit().await;
-                        Ok(generate_claims(
-                            serde_json::to_string(&res.rows_affected()).unwrap(),
-                            Sub::DATA,
-                        ))
-                    }
-                    Err(_) => {
-                        let _ = &mut transaction.rollback().await;
-                        Err(UndefinedError::default())
-                    }
-                }
-            } else {
-                Err(UserNotAllowedError::default())
-            }
-        }
-        Sub::FETCH => {
-            if user_access >= 1 {
-                let result =
-                    fetch_all_as_json(AppliedQuery::new(&dat.query).with_args(dat.parts), &db)
-                        .await
-                        .unwrap();
-                Ok(generate_claims(
-                    serde_json::to_string(&result).unwrap(),
-                    Sub::DATA,
-                ))
-            } else {
-                Err(UserNotAllowedError::default())
-            }
-        }
+    match query_claims.sub {
+        Sub::MUTATE => handle_mutate(dat, user_access, &db).await,
+        Sub::FETCH => handle_fetch(dat, user_access, &db).await,
         _ => Err(UndefinedError::default()),
-    };
-
-    response_claims_result
+    }
 }
 
 pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, Error> {

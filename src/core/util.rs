@@ -16,7 +16,7 @@ pub async fn get_or_insert_db_connection<'a>(
     db_connections_guard: &'a impl Guard,
     data: &'a web::Data<AppState>,
     db_name: &'a str,
-) -> Result<&'a SqlitePool, Error<'a>> {
+) -> Result<&'a SqlitePool, Error> {
     let db_connections: Arc<papaya::HashMap<String, SqlitePool>> = Arc::clone(&data.db_connections);
 
     if !db_connections.contains_key(db_name, db_connections_guard) {

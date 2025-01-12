@@ -63,9 +63,6 @@ async fn handle_db_post(
                 ErrorKind::UserNotAllowed => {
                     return HttpResponse::Forbidden().json(ResponseResult::new().error(e))
                 }
-                ErrorKind::SubjectInvalid => {
-                    return HttpResponse::NotAcceptable().json(ResponseResult::new().error(e))
-                }
                 _ => {
                     return HttpResponse::InternalServerError().json(ResponseResult::new().error(e))
                 }
