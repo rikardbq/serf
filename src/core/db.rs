@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use sqlx::query::Query;
@@ -12,6 +14,12 @@ pub enum QueryArg<'a> {
     Float(f32),
     #[serde(borrow)]
     String(&'a str),
+}
+
+impl<'a> fmt::Display for QueryArg<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub struct AppliedQuery<'a> {
@@ -34,8 +42,8 @@ impl<'a> AppliedQuery<'a> {
 
 async fn fetch_query<'a>(
     q: AppliedQuery<'a>,
-    db: &SqlitePool,
-) -> Result<Vec<SqliteRow>, sqlx::Error> {
+    db: &'a SqlitePool,
+) -> Result<Vec<SqliteRow>, sqlx::error::Error> {
     apply_query(sqlx::query(q.query), q.args)
         .fetch_all(db)
         .await
@@ -44,7 +52,7 @@ async fn fetch_query<'a>(
 pub async fn execute_query<'a, T>(
     q: AppliedQuery<'a>,
     db: T,
-) -> Result<SqliteQueryResult, sqlx::Error>
+) -> Result<SqliteQueryResult, sqlx::error::Error>
 where
     T: Executor<'a, Database = Sqlite>,
 {
@@ -73,17 +81,6 @@ fn apply_query<'q>(
     apply_query(query, Some(tail.to_vec()))
 }
 
-// may need to do something similar later where i map struct as enum values with pre-processing of values
-// impl<'a> QueryArg<'a> {
-//     fn as_value(&self) -> &(dyn sqlx::Encode<'a, Sqlite> + 'a) {
-//         match self {
-//             QueryArg::Int(val) => val,
-//             QueryArg::Float(val) => val,
-//             QueryArg::Str(val) => val,
-//         }
-//     }
-// }
-
 fn map_sqliterow_col_to_json_value<'a>(
     row: &'a SqliteRow,
     col_name: &'a str,
@@ -109,7 +106,7 @@ fn map_sqliterow_col_to_json_value<'a>(
 
 pub async fn fetch_all_as_json<'a>(
     q: AppliedQuery<'a>,
-    db: &SqlitePool,
+    db: &'a SqlitePool,
 ) -> Result<Vec<JsonValue>, sqlx::error::Error> {
     let rows = fetch_query(q, db).await?;
     let result = rows
