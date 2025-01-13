@@ -1,10 +1,11 @@
 ### SQLite Server in Rust using sqlx backend to manage db
 Because it's fun ^^
 
-Note: Will probably error since the db files I have tested with aren't included.
+--Note: Will probably error since the db files I have tested with aren't included.--
+Note: OUTDATED
 
-- API (so far)
-    - Paths made for testing purposes (this logic will live in a consumer-side lib of some kind later on. For my use-case, a Deno TS Server side library for making requests according to pre-defined parameters towards the SQLite rust server.)
+- API
+    - For testing and simplifying development
         - POST["/generate_token"]
             - cURL
                 - 
@@ -58,18 +59,21 @@ Note: Will probably error since the db files I have tested with aren't included.
                 ```
 
 - User management
-    - currently enclosed in a file (will probably use special db file specific to this config)
-    - This will be managed by CLI binary (server keeps a Arc Mutex handle on a HashMap that will be populated on db file change) (not sure how to do this yet)
-    - schema
-        - 
+    - Create DB (flags= [-db \<db_name\>])
+    ```
+    cargo run --bin sqlite_server_cli -- create database -db testdb
+    ```
+    - Create User (flags= [-u \<username\>, -p \<password\>])
+    ```
+    cargo run --bin sqlite_server_cli -- create user -u rikardbq -p testpw123
+    ```
+    - Modify User
+        - Access (flags= [-u \<username\>, -db \<db_name\>, -ar \<access-right(1=read, 2=write, 3=read+write)\>])
         ```
-        <username>|<username_hash>|<(username+pw)_hash>|<database>:<access_level>,<database>:<access_level>
+        cargo run --bin sqlite_server_cli -- modify user access -u rikardbq -db testdb -ar 3
         ```
-    - access levels (think linux)
-        - 0 nothing
-        - 1 read
-        - 2 write
-        - 3 read + write
-        - 4 not sure yet, possibly create / delete
-
-        So assuming you have access to create + read + write, your access will be 7 (4 + (3 or 1 + 2, whichever way you wanna think about it))
+        - access levels (think linux)
+            - 0 nothing
+            - 1 read
+            - 2 write
+            - 3 read + write

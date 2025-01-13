@@ -10,14 +10,12 @@
         - migrations will be of similar type as mutation requests
         - consumer side will bundle together all migrations that are still not applied
         - expectation at migration endpoint is that there are possibly many queries to be applied
-- [-] start work on the CLI for adding users to user management db
-    - [-] basic idea is to manage users with add, remove, modify commands (may have to use some library to manage sub-commanding)
+- [x] start work on the CLI for adding users to user management db
+    - [x] basic idea is to manage users with add, remove, modify commands (may have to use some library to manage sub-commanding)
     - same pattern would apply for managing DB's and user access to DB's (not final)
         - ```sqlite_server_cli add user -u rikardbq -p somepass```
         - ```sqlite_server_cli remove user -u rikardbq```
         - ```sqlite_server_cli modify user chpass -u rikardbq -op oldpass -np newpass```
-- [] handle updates to the user management db so that the Arc handle gets the latest user hashmap
-    - use "notify" crate to listen on the db file change?
 - [x] root_dir=$HOME/.serf/ or %APPDATA_LOCAL%/.serf/ depending on architecture built on
     - consumer_db_path=$root_dir/db/{hashed_db_name}/
         - 1 folder per db to better namespace them on the filesystem since SQLite adds a bunch of meta files when manipulating the DB
@@ -25,12 +23,13 @@
     - SERF_ROOT_DIR env in build script, defaults to ./serf from the project root dir when in dev
         - defaults(arch dependent) in build scripts
             - [x] win: %APPDATA%\.serf
-            - [] unix: $HOME/.serf
+            - [x] unix: $HOME/.serf
     - folders will be created and populated with necessary files
+- [x] install scripts for unix / win
 - [x] use transactions for mutations
 - [x] change usage of name "base_query in dat claim" to "query"
-- [] break out mutation and query logic into separate endpoints???
-- [] use middleware to check headers
+- [] handle updates to the user management db so that the Arc handle gets the latest user hashmap
+    - use "notify" crate to listen on the db file change?
 - [] CACHE queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap
@@ -54,14 +53,15 @@
 
 ### BRANCH REFACTORING
 ---
-- [-] refine CLI, make cli specific structs to handle funtionality
-- [] 
-- [] 
-- [] 
+- [x] update errors
+- [x] cleanup CLI
+- [x] cleanup utils 
+- [x] cleanup db controller
+- [x] minor stuff here and there
 
-### BRANCH QUERY-CACHING
+### BRANCH QUERY-CACHING (will come some time... need to come up with a good cache eviction solution)
 ---
-- [-] Query caching
+- [-] Query caching (stashed changes for now)
 - [] Cache bust on write to table
 - [] Cache eviction rules setup
 - [] refactor code
