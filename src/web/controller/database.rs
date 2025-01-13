@@ -128,12 +128,9 @@ async fn handle_db_migration_post(
     }
 
     let migration: RequestMigration = serde_json::from_str(&claims.dat).unwrap();
-
-    // start transaction here because we want to fail everything if we can't insert migration state
-    // or if we fail any of these steps in any way
     let mut transaction = db.begin().await.unwrap();
 
-    // create migration table and panic if fail
+    // create if not exist, will enter Ok clause even if it exists
     match execute_query(
         AppliedQuery::new(queries::CREATE_MIGRATIONS_TABLE),
         &mut *transaction,
@@ -163,7 +160,6 @@ async fn handle_db_migration_post(
         }
     };
 
-    // apply migration
     let res = match execute_query(AppliedQuery::new(&migration.query), &mut *transaction).await {
         Ok(_) => {
             let _ = &mut transaction.commit().await;
