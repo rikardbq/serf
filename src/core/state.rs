@@ -3,7 +3,7 @@ use std::sync::Arc;
 use papaya::{Guard, HashMap};
 use sqlx::SqlitePool;
 
-use super::error::{SerfError, Error, UserNotExistError};
+use super::error::{Error, SerfError, UserNotExistError};
 
 pub type DatabaseConnections = Arc<HashMap<String, SqlitePool>>;
 pub type Users = Arc<HashMap<String, User>>;

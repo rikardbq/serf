@@ -60,8 +60,9 @@
 
 ### BRANCH USER DB NOTIFY
 ---
-- [] add fs file change event listener (notify) for server user db
-- [] handle update AppState on change
+- [x] add fs file change event listener (notify) for server user db
+- [x] handle update AppState on change
+- [] write util function for managing re/loading users into app state
 
 ### BRANCH REFACTORING
 ---
