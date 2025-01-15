@@ -75,10 +75,8 @@ pub fn populate_app_state_users(db_users: Vec<JsonValue>, app_data: &web::Data<A
         app_state_users_pin.clear();
     }
 
-    db_users.iter().for_each(move |x| {
-        let username = x.get("username").unwrap();
-        let username_hash = x.get("username_hash").unwrap();
-        let username_password_hash = x.get("username_password_hash").unwrap();
+    db_users.iter().for_each(|x| {
+        let user: User = serde_json::from_value(x.clone()).unwrap();
         let databases = x.get("databases").unwrap();
         let db_access_rights = HashMap::new();
         let db_access_rights_pin = db_access_rights.pin();
@@ -95,10 +93,11 @@ pub fn populate_app_state_users(db_users: Vec<JsonValue>, app_data: &web::Data<A
         }
 
         app_state_users_pin.insert(
-            String::from(username_hash.as_str().unwrap()),
+            user.username_hash.clone(),
             User {
-                username: String::from(username.as_str().unwrap()),
-                username_password_hash: String::from(username_password_hash.as_str().unwrap()),
+                username: user.username,
+                username_hash: user.username_hash,
+                username_password_hash: user.username_password_hash,
                 db_access_rights: db_access_rights.clone(),
             },
         );
