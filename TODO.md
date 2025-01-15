@@ -28,8 +28,10 @@
 - [x] install scripts for unix / win
 - [x] use transactions for mutations
 - [x] change usage of name "base_query in dat claim" to "query"
-- [] handle updates to the user management db so that the Arc handle gets the latest user hashmap
-    - use "notify" crate to listen on the db file change?
+- [x] handle updates to the user management db so that the Arc handle gets the latest user hashmap
+    - use "notify" crate to listen on the db file change
+- [-] use serde de/serialization for internal data types
+    - [] implement custom papaya::HashMap serialize / deserialize trait
 - [] CACHE queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap
@@ -51,6 +53,19 @@
         
 ---
 
+
+### BRANCH QUERY-CACHING (will come some time... need to come up with a good cache eviction solution)
+---
+- [-] Query caching (stashed changes for now)
+- [] Cache bust on write to table
+- [] Cache eviction rules setup
+
+### BRANCH USER DB NOTIFY
+---
+- [x] add fs file change event listener (notify) for server user db
+- [x] handle update AppState on change
+- [x] write util function for managing re/loading users into app state
+
 ### BRANCH REFACTORING
 ---
 - [x] update errors
@@ -58,14 +73,6 @@
 - [x] cleanup utils 
 - [x] cleanup db controller
 - [x] minor stuff here and there
-
-### BRANCH QUERY-CACHING (will come some time... need to come up with a good cache eviction solution)
----
-- [-] Query caching (stashed changes for now)
-- [] Cache bust on write to table
-- [] Cache eviction rules setup
-- [] refactor code
-- [] re-structure project
 
 ### BRANCH MIGRATIONS
 ---

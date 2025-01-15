@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use papaya::{Guard, HashMap};
+use serde::Deserialize;
 use sqlx::SqlitePool;
 
-use super::error::{SerfError, Error, UserNotExistError};
+use super::error::{Error, SerfError, UserNotExistError};
 
 pub type DatabaseConnections = Arc<HashMap<String, SqlitePool>>;
 pub type Users = Arc<HashMap<String, User>>;
@@ -38,10 +39,12 @@ impl AppState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct User {
     pub username: String,
+    pub username_hash: String,
     pub username_password_hash: String,
+    #[serde(skip)]
     pub db_access_rights: HashMap<String, u8>,
 }
 
