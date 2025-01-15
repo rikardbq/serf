@@ -51,6 +51,18 @@
         
 ---
 
+
+### BRANCH QUERY-CACHING (will come some time... need to come up with a good cache eviction solution)
+---
+- [-] Query caching (stashed changes for now)
+- [] Cache bust on write to table
+- [] Cache eviction rules setup
+
+### BRANCH USER DB NOTIFY
+---
+- [] add fs file change event listener (notify) for server user db
+- [] handle update AppState on change
+
 ### BRANCH REFACTORING
 ---
 - [x] update errors
@@ -58,14 +70,6 @@
 - [x] cleanup utils 
 - [x] cleanup db controller
 - [x] minor stuff here and there
-
-### BRANCH QUERY-CACHING (will come some time... need to come up with a good cache eviction solution)
----
-- [-] Query caching (stashed changes for now)
-- [] Cache bust on write to table
-- [] Cache eviction rules setup
-- [] refactor code
-- [] re-structure project
 
 ### BRANCH MIGRATIONS
 ---
