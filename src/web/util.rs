@@ -12,7 +12,7 @@ use crate::core::{
 use super::jwt::{generate_claims, Claims, RequestQuery, Sub};
 
 async fn handle_mutate<'a>(
-    dat: RequestQuery<'a>,
+    dat: RequestQuery,
     user_access: u8,
     db: &'a SqlitePool,
 ) -> Result<Claims, Error> {
@@ -44,7 +44,7 @@ async fn handle_mutate<'a>(
 }
 
 async fn handle_fetch<'a>(
-    dat: RequestQuery<'a>,
+    dat: RequestQuery,
     user_access: u8,
     db: &'a SqlitePool,
 ) -> Result<Claims, Error> {

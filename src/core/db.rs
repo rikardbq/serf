@@ -1,4 +1,4 @@
-use std::fmt;
+// use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
@@ -7,24 +7,34 @@ use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
 use sqlx::{Column, Executor, Row};
 use sqlx::{Database, Sqlite, SqlitePool, TypeInfo};
 
-#[derive(Clone, Deserialize, Serialize, Debug)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum QueryArg<'a> {
-    Int(i32),
-    Float(f32),
-    #[serde(borrow)]
-    String(&'a str),
+pub enum QueryArg {
+    Int(i64),
+    Float(f64),
+    String(String),
 }
 
-impl<'a> fmt::Display for QueryArg<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
+// keep until other solution is proven to work
+// ---
+// #[derive(Clone, Deserialize, Serialize, Debug)]
+// #[serde(untagged)]
+// pub enum QueryArg<'a> {
+//     Int(i32),
+//     Float(f32),
+//     #[serde(borrow)]
+//     String(&'a str),
+// }
+//
+// impl<'a> fmt::Display for QueryArg<'a> {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{:?}", self)
+//     }
+// }
 
 pub struct AppliedQuery<'a> {
     query: &'a str,
-    args: Option<Vec<QueryArg<'a>>>,
+    args: Option<Vec<QueryArg>>,
 }
 
 impl<'a> AppliedQuery<'a> {
@@ -32,7 +42,7 @@ impl<'a> AppliedQuery<'a> {
         AppliedQuery { query, args: None }
     }
 
-    pub fn with_args(self, args: Vec<QueryArg<'a>>) -> Self {
+    pub fn with_args(self, args: Vec<QueryArg>) -> Self {
         AppliedQuery {
             args: Some(args),
             ..self
@@ -61,7 +71,7 @@ where
 
 fn apply_query<'q>(
     query: Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>>,
-    args: Option<Vec<QueryArg<'q>>>,
+    args: Option<Vec<QueryArg>>,
 ) -> Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>> {
     let args = match args {
         Some(args) if !args.is_empty() => args,
@@ -75,10 +85,19 @@ fn apply_query<'q>(
     let query = match first {
         QueryArg::Int(val) => query.bind(*val),
         QueryArg::Float(val) => query.bind(*val),
-        QueryArg::String(val) => query.bind(*val),
+        QueryArg::String(val) => query.bind(val.clone()),
     };
 
     apply_query(query, Some(tail.to_vec()))
+}
+
+fn map_row_col_type<'b, T>(row: &'b SqliteRow, col_name: &'b str) -> JsonValue
+where
+    JsonValue: std::convert::From<T>,
+    T: sqlx::Type<sqlx::Sqlite> + sqlx::Decode<'b, sqlx::Sqlite>,
+{
+    row.try_get::<T, _>(col_name)
+        .map_or_else(|_| json!(null), JsonValue::from)
 }
 
 fn map_sqliterow_col_to_json_value<'a>(
@@ -86,20 +105,11 @@ fn map_sqliterow_col_to_json_value<'a>(
     col_name: &'a str,
     type_info: &'a str,
 ) -> JsonValue {
-    fn do_try_get<'b, T>(row: &'b SqliteRow, col_name: &'b str) -> JsonValue
-    where
-        JsonValue: std::convert::From<T>,
-        T: sqlx::Type<sqlx::Sqlite> + sqlx::Decode<'b, sqlx::Sqlite>,
-    {
-        row.try_get::<T, _>(col_name)
-            .map_or_else(|_| json!(null), JsonValue::from)
-    }
-
     match type_info {
-        "INTEGER" => do_try_get::<i32>(row, col_name),
-        "REAL" => do_try_get::<f32>(row, col_name),
-        "TEXT" => do_try_get::<String>(row, col_name),
-        "NULL" => do_try_get::<JsonValue>(row, col_name),
+        "INTEGER" => map_row_col_type::<i64>(row, col_name),
+        "REAL" => map_row_col_type::<f64>(row, col_name),
+        "TEXT" => map_row_col_type::<String>(row, col_name),
+        "NULL" => map_row_col_type::<JsonValue>(row, col_name),
         _ => json!(null),
     }
 }

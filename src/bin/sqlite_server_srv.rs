@@ -13,6 +13,8 @@ use sqlite_server::{
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
+const HOST: &str = "127.0.0.1";
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let mut port = cli::DEFAULT_PORT;
@@ -51,13 +53,13 @@ async fn main() -> std::io::Result<()> {
             .configure(sqlite_server::web::controller::init_db_controller)
             .configure(sqlite_server::web::controller::init_token_test_controller)
     })
-    .bind(("127.0.0.1", port))
+    .bind((HOST, port))
     .unwrap()
     .run();
 
     println!(
-        ":::SERVER START:::\n127.0.0.1\nPORT={}\nDB_MAX_CONN={}\nDB_MAX_IDLE_TIME={}",
-        port, db_max_conn, db_max_idle_time
+        "SERVER RUNNING @ {}:{}\ndb_max_conn={}\ndb_max_idle_time={}",
+        HOST, port, db_max_conn, db_max_idle_time
     );
 
     actix_web::rt::spawn(async {

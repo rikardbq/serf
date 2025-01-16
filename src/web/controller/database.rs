@@ -140,8 +140,8 @@ async fn handle_db_migration_post(
         Ok(_) => {
             match execute_query(
                 AppliedQuery::new(queries::INSERT_MIGRATION).with_args(vec![
-                    QueryArg::String(&migration.name),
-                    QueryArg::String(&migration.query),
+                    QueryArg::String(migration.name),
+                    QueryArg::String(migration.query.clone()),
                 ]),
                 &mut *transaction,
             )

@@ -129,7 +129,7 @@ impl DatabaseManager {
         }
     }
 
-    pub async fn create_user(&self, username: &str, password: &str) {
+    pub async fn create_user(&self, username: String, password: String) {
         if !username.eq("") && !password.eq("") {
             let username_hash =
                 base16ct::lower::encode_string(&Sha256::digest(username.as_bytes()));
@@ -145,8 +145,8 @@ impl DatabaseManager {
             let _ = match execute_query(
                 AppliedQuery::new(queries::INSERT_USER).with_args(vec![
                     QueryArg::String(username),
-                    QueryArg::String(&username_hash),
-                    QueryArg::String(&username_password_hash),
+                    QueryArg::String(username_hash),
+                    QueryArg::String(username_password_hash),
                 ]),
                 &mut *transaction,
             )
@@ -163,7 +163,12 @@ impl DatabaseManager {
         }
     }
 
-    pub async fn modify_user_access(&self, username: &str, database_name: &str, access_right: i32) {
+    pub async fn modify_user_access(
+        &self,
+        username: String,
+        database_name: String,
+        access_right: u8,
+    ) {
         if !username.eq("") && !database_name.eq("") && access_right != 0 {
             let username_hash =
                 base16ct::lower::encode_string(&Sha256::digest(username.as_bytes()));
@@ -178,9 +183,9 @@ impl DatabaseManager {
             let _ = match execute_query(
                 AppliedQuery::new(queries::UPSERT_USER_DATABASE_ACCESS).with_args(vec![
                     QueryArg::String(database_name),
-                    QueryArg::String(&database_name_hash),
-                    QueryArg::Int(access_right),
-                    QueryArg::String(&username_hash),
+                    QueryArg::String(database_name_hash),
+                    QueryArg::Int(access_right as i64),
+                    QueryArg::String(username_hash),
                 ]),
                 &mut *transaction,
             )

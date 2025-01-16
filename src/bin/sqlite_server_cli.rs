@@ -42,7 +42,7 @@ async fn main() -> std::io::Result<()> {
                             get_flag_val::<String>(&args_split, cli::USERNAME_FLAG).unwrap();
                         let password =
                             get_flag_val::<String>(&args_split, cli::PASSWORD_FLAG).unwrap();
-                        database_manager.create_user(&username, &password).await;
+                        database_manager.create_user(username, password).await;
                     }
                     _ => panic!(
                         "Error: Unknown command {}, supported commands are [database, user]",
@@ -62,10 +62,10 @@ async fn main() -> std::io::Result<()> {
                             let database =
                                 get_flag_val::<String>(&args_split, cli::DB_NAME_FLAG).unwrap();
                             let access_right =
-                                get_flag_val::<i32>(&args_split, cli::ACCESS_RIGHT_FLAG).unwrap();
+                                get_flag_val::<u8>(&args_split, cli::ACCESS_RIGHT_FLAG).unwrap();
 
                             database_manager
-                                .modify_user_access(&username, &database, access_right)
+                                .modify_user_access(username, database, access_right)
                                 .await;
                         }
                         _ => panic!(
