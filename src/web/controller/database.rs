@@ -138,7 +138,7 @@ async fn handle_db_migration_post(
     .await
     {
         Ok(_) => {
-            match execute_query(
+            if let Err(e) = execute_query(
                 AppliedQuery::new(queries::INSERT_MIGRATION).with_args(vec![
                     QueryArg::String(migration.name),
                     QueryArg::String(migration.query.clone()),
@@ -147,11 +147,8 @@ async fn handle_db_migration_post(
             )
             .await
             {
-                Ok(_) => {}
-                Err(e) => {
-                    let _ = &mut transaction.rollback().await;
-                    panic!("{e}");
-                }
+                let _ = &mut transaction.rollback().await;
+                panic!("{e}");
             }
         }
         Err(e) => {
@@ -167,7 +164,7 @@ async fn handle_db_migration_post(
         }
         Err(e) => {
             let _ = &mut transaction.rollback().await;
-            println!("{e}");
+            eprintln!("{e}");
             generate_claims(false.to_string(), Sub::DATA)
         }
     };

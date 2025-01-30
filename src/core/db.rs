@@ -1,5 +1,3 @@
-// use std::fmt;
-
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use sqlx::query::Query;
@@ -14,23 +12,6 @@ pub enum QueryArg {
     Float(f64),
     String(String),
 }
-
-// keep until other solution is proven to work
-// ---
-// #[derive(Clone, Deserialize, Serialize, Debug)]
-// #[serde(untagged)]
-// pub enum QueryArg<'a> {
-//     Int(i32),
-//     Float(f32),
-//     #[serde(borrow)]
-//     String(&'a str),
-// }
-//
-// impl<'a> fmt::Display for QueryArg<'a> {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{:?}", self)
-//     }
-// }
 
 pub struct AppliedQuery<'a> {
     query: &'a str,
@@ -78,17 +59,16 @@ fn apply_query<'q>(
         _ => return query,
     };
 
-    let [first, tail @ ..] = args.as_slice() else {
-        return query;
-    };
+    let mut query = query;
+    for x in args {
+        query = match x {
+            QueryArg::Int(val) => query.bind(val),
+            QueryArg::Float(val) => query.bind(val),
+            QueryArg::String(val) => query.bind(val),
+        };
+    }
 
-    let query = match first {
-        QueryArg::Int(val) => query.bind(*val),
-        QueryArg::Float(val) => query.bind(*val),
-        QueryArg::String(val) => query.bind(val.clone()),
-    };
-
-    apply_query(query, Some(tail.to_vec()))
+    query
 }
 
 fn map_row_col_type<'b, T>(row: &'b SqliteRow, col_name: &'b str) -> JsonValue

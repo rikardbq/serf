@@ -10,7 +10,6 @@ use crate::core::db::QueryArg;
 #[derive(Deserialize, Serialize, Debug)]
 pub struct RequestQuery {
     pub query: String,
-    // #[serde(borrow)]
     pub parts: Vec<QueryArg>,
 }
 
