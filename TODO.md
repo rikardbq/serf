@@ -32,6 +32,7 @@
     - use "notify" crate to listen on the db file change
 - [-] use serde de/serialization for internal data types
     - [] implement custom papaya::HashMap serialize / deserialize trait
+    - [] use claim kind specific data type instead of string.
 - [] CACHE queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap

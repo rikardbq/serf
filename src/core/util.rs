@@ -14,13 +14,11 @@ use serde_json::Value as JsonValue;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
 
-use crate::core::error::{DatabaseNotExistError, SerfError};
-
 use super::state::AppState;
 use super::{
     constants::queries,
     db::{fetch_all_as_json, AppliedQuery},
-    error::Error,
+    error::{DatabaseNotExistError, Error, SerfError},
     state::User,
 };
 
