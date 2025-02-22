@@ -4,19 +4,43 @@ use jsonwebtoken::{
     decode, encode, Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 
 use crate::core::db::QueryArg;
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct RequestQuery {
+pub struct QueryRequest {
     pub query: String,
     pub parts: Vec<QueryArg>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct RequestMigration {
+pub struct MigrationRequest {
     pub name: String,
     pub query: String,
+}
+
+pub type FetchResponse = Vec<JsonValue>;
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct MutationResponse {
+    pub rows_affected: u64,
+    pub last_insert_rowid: i64,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct MigrationResponse {
+    pub state: bool,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(untagged)]
+pub enum DatKind {
+    FetchRes(FetchResponse),
+    MutationRes(MutationResponse),
+    QueryReq(QueryRequest),
+    MigrationReq(MigrationRequest),
+    MigrationRes(MigrationResponse),
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug)]
@@ -38,12 +62,12 @@ pub struct Claims {
     pub iss: Iss,
     pub sub: Sub,
     // pub aud: String,
-    pub dat: String,
+    pub dat: DatKind,
     pub iat: usize,
     pub exp: usize,
 }
 
-pub fn generate_claims(content: String, subject: Sub) -> Claims {
+pub fn generate_claims(content: DatKind, subject: Sub) -> Claims {
     let claims = Claims {
         iss: Iss::SERVER,
         sub: subject,

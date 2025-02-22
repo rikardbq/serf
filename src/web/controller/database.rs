@@ -9,7 +9,10 @@ use crate::{
         util::get_or_insert_db_connection,
     },
     web::{
-        jwt::{decode_token, generate_claims, generate_token, RequestMigration, Sub},
+        jwt::{
+            decode_token, generate_claims, generate_token, DatKind, MigrationRequest,
+            MigrationResponse, Sub,
+        },
         request::{RequestBody, ResponseResult},
         util::{get_header_value, get_query_result_claims},
     },
@@ -127,7 +130,13 @@ async fn handle_db_migration_post(
             .json(ResponseResult::new().error(UndefinedError::default()));
     }
 
-    let migration: RequestMigration = serde_json::from_str(&claims.dat).unwrap();
+    let migration: MigrationRequest = match claims.dat {
+        DatKind::MigrationReq(migration_request) => migration_request,
+        _ => {
+            return HttpResponse::InternalServerError()
+                .json(ResponseResult::new().error(UndefinedError::default()));
+        }
+    };
     let mut transaction = db.begin().await.unwrap();
 
     // create if not exist, will enter Ok clause even if it exists
@@ -160,12 +169,18 @@ async fn handle_db_migration_post(
     let res = match execute_query(AppliedQuery::new(&migration.query), &mut *transaction).await {
         Ok(_) => {
             let _ = &mut transaction.commit().await;
-            generate_claims(true.to_string(), Sub::DATA)
+            generate_claims(
+                DatKind::MigrationRes(MigrationResponse { state: true }),
+                Sub::DATA,
+            )
         }
         Err(e) => {
             let _ = &mut transaction.rollback().await;
             eprintln!("{e}");
-            generate_claims(false.to_string(), Sub::DATA)
+            generate_claims(
+                DatKind::MigrationRes(MigrationResponse { state: false }),
+                Sub::DATA,
+            )
         }
     };
 

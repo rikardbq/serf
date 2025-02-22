@@ -5,7 +5,7 @@ use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 use crate::{
     core::state::{AppState, User},
     web::{
-        jwt::{decode_token, generate_claims, generate_token, verify_token, Sub},
+        jwt::{decode_token, generate_claims, generate_token, verify_token, DatKind, Sub},
         request::{RequestBody, ResponseResult},
         util::get_header_value,
     },
@@ -41,7 +41,9 @@ async fn handle_generate_token(
         }
     };
 
-    let claims = generate_claims(req_body, Sub::FETCH);
+    println!("{req_body}");
+
+    let claims = generate_claims(DatKind::QueryReq(serde_json::from_str(&req_body).unwrap()), Sub::FETCH);
     let token = generate_token(claims, &user_entry_for_id.username_password_hash).unwrap();
 
     return HttpResponse::Ok().body(token);

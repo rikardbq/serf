@@ -9,17 +9,17 @@ use crate::core::{
     },
 };
 
-use super::jwt::{generate_claims, Claims, RequestQuery, Sub};
+use super::jwt::{generate_claims, Claims, DatKind, MutationResponse, QueryRequest, Sub};
 
 async fn handle_mutate<'a>(
-    dat: RequestQuery,
+    request_query: QueryRequest,
     user_access: u8,
     db: &'a SqlitePool,
 ) -> Result<Claims, Error> {
     if user_access >= 2 {
         let mut transaction = db.begin().await.unwrap();
         match execute_query(
-            AppliedQuery::new(&dat.query).with_args(dat.parts),
+            AppliedQuery::new(&request_query.query).with_args(request_query.parts),
             &mut *transaction,
         )
         .await
@@ -27,7 +27,10 @@ async fn handle_mutate<'a>(
             Ok(res) => {
                 let _ = &mut transaction.commit().await;
                 Ok(generate_claims(
-                    serde_json::to_string(&res.rows_affected()).unwrap(),
+                    DatKind::MutationRes(MutationResponse {
+                        rows_affected: res.rows_affected(),
+                        last_insert_rowid: res.last_insert_rowid(),
+                    }),
                     Sub::DATA,
                 ))
             }
@@ -44,16 +47,18 @@ async fn handle_mutate<'a>(
 }
 
 async fn handle_fetch<'a>(
-    dat: RequestQuery,
+    request_query: QueryRequest,
     user_access: u8,
     db: &'a SqlitePool,
 ) -> Result<Claims, Error> {
     if user_access >= 1 {
-        match fetch_all_as_json(AppliedQuery::new(&dat.query).with_args(dat.parts), &db).await {
-            Ok(res) => Ok(generate_claims(
-                serde_json::to_string(&res).unwrap(),
-                Sub::DATA,
-            )),
+        match fetch_all_as_json(
+            AppliedQuery::new(&request_query.query).with_args(request_query.parts),
+            &db,
+        )
+        .await
+        {
+            Ok(res) => Ok(generate_claims(DatKind::FetchRes(res), Sub::DATA)),
             Err(e) => Err(UndefinedError::with_message(
                 e.as_database_error().unwrap().message(),
             )),
@@ -68,11 +73,14 @@ pub async fn get_query_result_claims<'a>(
     user_access: u8,
     db: &'a SqlitePool,
 ) -> Result<Claims, Error> {
-    let dat: RequestQuery = serde_json::from_str(&query_claims.dat).unwrap();
-    match query_claims.sub {
-        Sub::MUTATE => handle_mutate(dat, user_access, &db).await,
-        Sub::FETCH => handle_fetch(dat, user_access, &db).await,
-        _ => Err(UndefinedError::default()),
+    if let DatKind::QueryReq(dat) = query_claims.dat {
+        match query_claims.sub {
+            Sub::MUTATE => handle_mutate(dat, user_access, &db).await,
+            Sub::FETCH => handle_fetch(dat, user_access, &db).await,
+            _ => Err(UndefinedError::default()),
+        }
+    } else {
+        Err(UndefinedError::default())
     }
 }
 
