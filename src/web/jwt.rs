@@ -20,7 +20,10 @@ pub struct MigrationRequest {
     pub query: String,
 }
 
-pub type FetchResponse = Vec<JsonValue>;
+#[derive(Deserialize, Serialize, Debug)]
+pub struct FetchResponse {
+    pub data: Vec<JsonValue>,
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct MutationResponse {
@@ -36,11 +39,44 @@ pub struct MigrationResponse {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
 pub enum DatKind {
-    FetchRes(FetchResponse),
-    MutationRes(MutationResponse),
-    QueryReq(QueryRequest),
-    MigrationReq(MigrationRequest),
-    MigrationRes(MigrationResponse),
+    FetchResponse(FetchResponse),
+    MutationResponse(MutationResponse),
+    QueryRequest(QueryRequest),
+    MigrationRequest(MigrationRequest),
+    MigrationResponse(MigrationResponse),
+}
+
+impl QueryRequest {
+    pub fn as_dat_kind(query: String, parts: Vec<QueryArg>) -> DatKind {
+        DatKind::QueryRequest(QueryRequest { query, parts })
+    }
+}
+
+impl MigrationRequest {
+    pub fn as_dat_kind(name: String, query: String) -> DatKind {
+        DatKind::MigrationRequest(MigrationRequest { name, query })
+    }
+}
+
+impl FetchResponse {
+    pub fn as_dat_kind(data: Vec<JsonValue>) -> DatKind {
+        DatKind::FetchResponse(FetchResponse { data })
+    }
+}
+
+impl MutationResponse {
+    pub fn as_dat_kind(rows_affected: u64, last_insert_rowid: i64) -> DatKind {
+        DatKind::MutationResponse(MutationResponse {
+            rows_affected,
+            last_insert_rowid,
+        })
+    }
+}
+
+impl MigrationResponse {
+    pub fn as_dat_kind(state: bool) -> DatKind {
+        DatKind::MigrationResponse(MigrationResponse { state })
+    }
 }
 
 #[derive(PartialEq, Serialize, Deserialize, Debug)]

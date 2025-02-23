@@ -131,7 +131,7 @@ async fn handle_db_migration_post(
     }
 
     let migration: MigrationRequest = match claims.dat {
-        DatKind::MigrationReq(migration_request) => migration_request,
+        DatKind::MigrationRequest(migration_request) => migration_request,
         _ => {
             return HttpResponse::InternalServerError()
                 .json(ResponseResult::new().error(UndefinedError::default()));
@@ -169,18 +169,12 @@ async fn handle_db_migration_post(
     let res = match execute_query(AppliedQuery::new(&migration.query), &mut *transaction).await {
         Ok(_) => {
             let _ = &mut transaction.commit().await;
-            generate_claims(
-                DatKind::MigrationRes(MigrationResponse { state: true }),
-                Sub::DATA,
-            )
+            generate_claims(MigrationResponse::as_dat_kind(true), Sub::DATA)
         }
         Err(e) => {
             let _ = &mut transaction.rollback().await;
             eprintln!("{e}");
-            generate_claims(
-                DatKind::MigrationRes(MigrationResponse { state: false }),
-                Sub::DATA,
-            )
+            generate_claims(MigrationResponse::as_dat_kind(false), Sub::DATA)
         }
     };
 

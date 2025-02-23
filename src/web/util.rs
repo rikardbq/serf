@@ -9,7 +9,9 @@ use crate::core::{
     },
 };
 
-use super::jwt::{generate_claims, Claims, DatKind, MutationResponse, QueryRequest, Sub};
+use super::jwt::{
+    generate_claims, Claims, DatKind, FetchResponse, MutationResponse, QueryRequest, Sub,
+};
 
 async fn handle_mutate<'a>(
     request_query: QueryRequest,
@@ -27,10 +29,7 @@ async fn handle_mutate<'a>(
             Ok(res) => {
                 let _ = &mut transaction.commit().await;
                 Ok(generate_claims(
-                    DatKind::MutationRes(MutationResponse {
-                        rows_affected: res.rows_affected(),
-                        last_insert_rowid: res.last_insert_rowid(),
-                    }),
+                    MutationResponse::as_dat_kind(res.rows_affected(), res.last_insert_rowid()),
                     Sub::DATA,
                 ))
             }
@@ -58,7 +57,7 @@ async fn handle_fetch<'a>(
         )
         .await
         {
-            Ok(res) => Ok(generate_claims(DatKind::FetchRes(res), Sub::DATA)),
+            Ok(res) => Ok(generate_claims(FetchResponse::as_dat_kind(res), Sub::DATA)),
             Err(e) => Err(UndefinedError::with_message(
                 e.as_database_error().unwrap().message(),
             )),
@@ -73,7 +72,7 @@ pub async fn get_query_result_claims<'a>(
     user_access: u8,
     db: &'a SqlitePool,
 ) -> Result<Claims, Error> {
-    if let DatKind::QueryReq(dat) = query_claims.dat {
+    if let DatKind::QueryRequest(dat) = query_claims.dat {
         match query_claims.sub {
             Sub::MUTATE => handle_mutate(dat, user_access, &db).await,
             Sub::FETCH => handle_fetch(dat, user_access, &db).await,
