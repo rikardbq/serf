@@ -11,6 +11,7 @@ pub enum QueryArg {
     Int(i64),
     Float(f64),
     String(String),
+    Blob(Vec<u8>),
 }
 
 pub struct AppliedQuery<'a> {
@@ -65,6 +66,7 @@ fn apply_query<'q>(
             QueryArg::Int(val) => query.bind(val),
             QueryArg::Float(val) => query.bind(val),
             QueryArg::String(val) => query.bind(val),
+            QueryArg::Blob(val) => query.bind(val),
         };
     }
 
@@ -86,6 +88,7 @@ fn map_sqliterow_col_to_json_value<'a>(
     type_info: &'a str,
 ) -> JsonValue {
     match type_info {
+        "BLOB" => map_row_col_type::<Vec<u8>>(row, col_name),
         "INTEGER" => map_row_col_type::<i64>(row, col_name),
         "REAL" => map_row_col_type::<f64>(row, col_name),
         "TEXT" => map_row_col_type::<String>(row, col_name),
