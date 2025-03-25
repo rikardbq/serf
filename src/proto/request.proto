@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package serf.request;
+
+enum Iss {
+    CLIENT = 0;
+    SERVER = 1;
+}
+
+enum Sub {
+    DATA = 0;
+    FETCH = 1;
+    MIGRATE = 2;
+    MUTATE = 3;
+}
+
+message Claims {
+    Iss iss = 1;
+    Sub sub = 2;
+    oneof dat {
+        FetchResponse fetchResponse = 3;
+        MutationResponse mutationResponse = 4;
+        QueryRequest queryRequest = 5;
+        MigrationRequest migrationRequest = 6;
+        MigrationResponse migrationResponse = 7;
+    }
+    uint64 iat = 8;
+    uint64 exp = 9;
+}
+
+message QueryArg {
+    oneof value {
+        int64 int = 1;
+        double float = 2;
+        string string = 3;
+        bytes blob = 4;
+    } 
+}
+
+message QueryRequest {
+    string query = 1;
+    repeated QueryArg parts = 2;
+}
+
+message MigrationRequest {
+    string name = 1;
+    string query = 2;
+}
+
+message FetchResponse {
+    repeated bytes data = 1; // json data will be serialized to byte[]
+}
+
+message MutationResponse {
+    uint64 rowsAffected = 1;
+    uint64 lastInsertRowId = 2;
+}
+
+message MigrationResponse {
+    bool state = 1;
+}
+

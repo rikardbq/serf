@@ -51,6 +51,8 @@ where
     apply_query(sqlx::query(q.query), q.args).execute(db).await
 }
 
+
+// parts of this will need to be re-written as part of the protobuf implementation
 fn apply_query<'q>(
     query: Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>>,
     args: Option<Vec<QueryArg>>,

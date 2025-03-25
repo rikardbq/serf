@@ -23,7 +23,8 @@ chrono = "0.4.39"
 futures = "0.3.31"
 jsonwebtoken = "9.3.0"
 notify = "8.0.0"
-papaya = "0.1.7"
+papaya = "0.2.1"
+prost = "0.13.5"
 rbase64 = "2.0.3"
 regex = { version = "1.11.1", features = ["std"] }
 serde = { version = "1.0.217", features = ["derive"] }
@@ -34,4 +35,6 @@ tokio = { version = "1.43.0", features = ["macros", "rt", "rt-multi-thread"] }
 
 [build-dependencies]
 base16ct = { version = "0.2.0", features = ["alloc"] }
+prost-build = "0.13.5"
+protoc-bin-vendored = "3.1.0"
 sha2 = "0.10.8"

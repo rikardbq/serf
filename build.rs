@@ -4,6 +4,7 @@ use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
+use prost_build;
 
 // use this step to provide paths that are to be used
 // I.E anything provided from the outside in this step will override defaults
@@ -22,6 +23,7 @@ use std::path::Path;
 */
 
 fn main() {
+    println!("cargo::rerun-if-changed=build.rs");
     let build_out_dir = env::var_os("OUT_DIR").unwrap();
     let root_dir = env::var_os("SERF_ROOT_DIR").unwrap_or(OsString::from("./.serf"));
     let gen_dest_path = Path::new(&build_out_dir).join("gen.rs");
@@ -41,5 +43,9 @@ fn main() {
         ),
     )
     .unwrap();
-    println!("cargo::rerun-if-changed=build.rs");
+
+    let mut prost_build = prost_build::Config::new();
+    prost_build.protoc_executable(protoc_bin_vendored::protoc_bin_path().unwrap());
+    prost_build.compile_protos(&["src/proto/request.proto"],
+                                &["src/proto/"]).unwrap();
 }
