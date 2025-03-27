@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package serf_proto;
+
+import "fetch_response.proto";
+import "mutation_response.proto";
+import "query_request.proto";
+import "migration_request.proto";
+import "migration_response.proto";
+
+enum Iss {
+  CLIENT = 0;
+  SERVER = 1;
+}
+
+enum Sub {
+  DATA = 0;
+  FETCH = 1;
+  MIGRATE = 2;
+  MUTATE = 3;
+}
+
+message Claims {
+  Iss iss = 1;
+  Sub sub = 2;
+  oneof dat {
+    FetchResponse fetchResponse = 3;
+    MutationResponse mutationResponse = 4;
+    QueryRequest queryRequest = 5;
+    MigrationRequest migrationRequest = 6;
+    MigrationResponse migrationResponse = 7;
+  }
+  uint64 iat = 8;
+  uint64 exp = 9;
+}

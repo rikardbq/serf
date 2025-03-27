@@ -13,10 +13,6 @@ use sqlite_server::{
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
 
-pub mod request {
-    include!(concat!(env!("OUT_DIR"), "/serf.request.rs"));
-}
-
 const HOST: &str = "127.0.0.1";
 
 #[actix_web::main]

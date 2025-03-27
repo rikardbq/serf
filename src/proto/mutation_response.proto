@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package serf_proto;
+
+message MutationResponse {
+  uint64 rowsAffected = 1;
+  uint64 lastInsertRowId = 2;
+}

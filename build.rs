@@ -1,10 +1,10 @@
+use prost_build;
 use sha2::Digest;
 use sha2::Sha256;
 use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::path::Path;
-use prost_build;
 
 // use this step to provide paths that are to be used
 // I.E anything provided from the outside in this step will override defaults
@@ -46,6 +46,18 @@ fn main() {
 
     let mut prost_build = prost_build::Config::new();
     prost_build.protoc_executable(protoc_bin_vendored::protoc_bin_path().unwrap());
-    prost_build.compile_protos(&["src/proto/request.proto"],
-                                &["src/proto/"]).unwrap();
+    prost_build
+        .compile_protos(
+            &[
+                "src/proto/claims.proto",
+                "src/proto/fetch_response.proto",
+                "src/proto/migration_request.proto",
+                "src/proto/migration_response.proto",
+                "src/proto/mutation_response.proto",
+                "src/proto/query_arg.proto",
+                "src/proto/query_request.proto",
+            ],
+            &["src/proto/"],
+        )
+        .unwrap();
 }

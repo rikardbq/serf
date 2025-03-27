@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package serf_proto;
+
+message MigrationResponse {
+  bool state = 1;
+}

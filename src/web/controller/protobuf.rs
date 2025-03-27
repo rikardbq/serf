@@ -6,7 +6,8 @@ use actix_web::{
 };
 use hmac::{Hmac, Mac};
 use prost::Message;
-use request::MutationResponse;
+use serf_proto::{Claims, MutationResponse};
+// use request::MutationResponse;
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -27,19 +28,33 @@ use crate::{
     },
 };
 
-pub mod request {
-    include!(concat!(env!("OUT_DIR"), "/serf.request.rs"));
+pub mod serf_proto {
+    include!(concat!(env!("OUT_DIR"), "/serf.rs"));
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
     cfg.service(handle_testing_proto);
 }
 
+// assuming real controller method
+// a header called 0 and 1 contain username hash and data signature hash respectively is supplied
+// 1 is used to fetch the app state username and password hash in the lookup table
+// 0 is used to verify the signature of the data using the username and password hash as a secret when creating the sha256 hash of the input data
+// after this is done and either error has been handled or proceeded to decode the protobuf byte array
+// the database data is then encoded as protobuf and signed using the server-side known username and password hash as a secret
+// with response headers Content-Type: application/protobuf and 0: data_signature value
+// consumer-side verifies the returned data with the consumer-side known username and password hash and compares it to the signature from the server
+// if it's a match then the consumer knows the data hasn't been tampered with
 #[get("/testing_proto")]
 async fn handle_testing_proto(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
     let mut resp = MutationResponse::default();
     resp.last_insert_row_id = 123;
     resp.rows_affected = 1;
+
+    let mut asdg = Claims::default();
+    asdg.dat = Some(serf_proto::claims::Dat::QueryRequest(
+        serf_proto::QueryRequest::default(),
+    ));
 
     let mut buf = Vec::new();
     buf.reserve(resp.encoded_len());

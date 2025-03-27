@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package serf_proto;
+
+message FetchResponse {
+  repeated bytes data = 1; // json data will be serialized to byte[]
+}
