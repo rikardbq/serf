@@ -6,7 +6,7 @@ use actix_web::{
 };
 use hmac::{Hmac, Mac};
 use prost::Message;
-use serf_proto::{Claims, MutationResponse};
+use serf_proto::{claims, Claims, MutationResponse, Request};
 // use request::MutationResponse;
 use sha2::{Digest, Sha256};
 
@@ -29,7 +29,7 @@ use crate::{
 };
 
 pub mod serf_proto {
-    include!(concat!(env!("OUT_DIR"), "/serf.rs"));
+    include!(concat!(env!("OUT_DIR"), "/serf_proto.rs"));
 }
 
 pub fn init(cfg: &mut web::ServiceConfig) {
@@ -45,8 +45,28 @@ pub fn init(cfg: &mut web::ServiceConfig) {
 // with response headers Content-Type: application/protobuf and 0: data_signature value
 // consumer-side verifies the returned data with the consumer-side known username and password hash and compares it to the signature from the server
 // if it's a match then the consumer knows the data hasn't been tampered with
-#[get("/testing_proto")]
-async fn handle_testing_proto(req: HttpRequest, data: web::Data<AppState>) -> impl Responder {
+#[post("/test/testing_proto")]
+async fn handle_testing_proto(req: HttpRequest, data: web::Data<AppState>, req_body: web::Bytes) -> impl Responder {
+    println!("hello world");
+    println!("Raw received bytes: {:?}", req_body);
+    match Request::decode(&mut &req_body[..]) {
+        Ok(body) => {
+            println!("Decoded Protobuf: {:?}", body);
+            if let Some(c) = body.claims {
+                if let Some(d) = c.dat {
+                    if let claims::Dat::QueryRequest(dat) = d {
+                        println!("{:?}", dat.parts);
+                        println!("{:?}", dat.query)
+                    }
+                }
+            }
+        },
+        Err(e) => {
+            println!("Failed to decode Protobuf: {:?}", e);
+        }
+    }
+    
+    
     let mut resp = MutationResponse::default();
     resp.last_insert_row_id = 123;
     resp.rows_affected = 1;

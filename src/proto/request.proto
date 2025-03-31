@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package serf_proto;
+
+import "claims_util.proto";
+
+message Claims {
+  Iss iss = 1;
+  Sub sub = 2;
+  oneof dat {
+    FetchResponse fetchResponse = 3;
+    MutationResponse mutationResponse = 4;
+    QueryRequest queryRequest = 5;
+    MigrationRequest migrationRequest = 6;
+    MigrationResponse migrationResponse = 7;
+  }
+  uint64 iat = 8;
+  uint64 exp = 9;
+}
+
+enum ErrorKind {
+    Undefined = 0;
+    DatabaseNotExist = 1;
+    UserNotExist = 2;
+    UserNotAllowed = 3;
+    HeaderMissing = 4;
+    HeaderMalformed = 5;
+    ResourceNotExist = 6;
+}
+
+message Error {
+  string message = 1;
+  ErrorKind kind = 2;
+}
+
+message Request {
+  optional Claims claims = 1;
+  optional Error error = 2;
+}

@@ -23,7 +23,6 @@ use std::path::Path;
 */
 
 fn main() {
-    println!("cargo::rerun-if-changed=build.rs");
     let build_out_dir = env::var_os("OUT_DIR").unwrap();
     let root_dir = env::var_os("SERF_ROOT_DIR").unwrap_or(OsString::from("./.serf"));
     let gen_dest_path = Path::new(&build_out_dir).join("gen.rs");
@@ -49,15 +48,12 @@ fn main() {
     prost_build
         .compile_protos(
             &[
-                "src/proto/claims.proto",
-                "src/proto/fetch_response.proto",
-                "src/proto/migration_request.proto",
-                "src/proto/migration_response.proto",
-                "src/proto/mutation_response.proto",
-                "src/proto/query_arg.proto",
-                "src/proto/query_request.proto",
+                "src/proto/claims_util.proto",
+                "src/proto/request.proto",
             ],
             &["src/proto/"],
         )
         .unwrap();
+
+    println!("cargo::rerun-if-changed=build.rs");
 }

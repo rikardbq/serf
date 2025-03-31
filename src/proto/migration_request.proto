@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package serf_proto;
-
-message MigrationRequest {
-  string name = 1;
-  string query = 2;
-}
