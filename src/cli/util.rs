@@ -9,7 +9,8 @@ use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
 
 use crate::core::{
     constants::queries,
-    db::{execute_query, AppliedQuery, QueryArg},
+    db::{execute_query, AppliedQuery},
+    serf_proto::{QueryArg, query_arg}
 };
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
@@ -141,12 +142,11 @@ impl DatabaseManager {
                 .await
                 .unwrap();
             let mut transaction = pool.begin().await.unwrap();
-
             let _ = match execute_query(
-                AppliedQuery::new(queries::INSERT_USER).with_args(vec![
-                    QueryArg::String(username),
-                    QueryArg::String(username_hash),
-                    QueryArg::String(username_password_hash),
+                AppliedQuery::new(queries::INSERT_USER).with_args(&vec![
+                    QueryArg::new(query_arg::Value::String(username)),
+                    QueryArg::new(query_arg::Value::String(username_hash)),
+                    QueryArg::new(query_arg::Value::String(username_password_hash)),
                 ]),
                 &mut *transaction,
             )
@@ -181,11 +181,11 @@ impl DatabaseManager {
             let mut transaction = pool.begin().await.unwrap();
 
             let _ = match execute_query(
-                AppliedQuery::new(queries::UPSERT_USER_DATABASE_ACCESS).with_args(vec![
-                    QueryArg::String(database_name),
-                    QueryArg::String(database_name_hash),
-                    QueryArg::Int(access_right as i64),
-                    QueryArg::String(username_hash),
+                AppliedQuery::new(queries::UPSERT_USER_DATABASE_ACCESS).with_args(&vec![
+                   QueryArg::new(query_arg::Value::String(database_name)),
+                   QueryArg::new(query_arg::Value::String(database_name_hash)),
+                   QueryArg::new(query_arg::Value::Int(access_right as i64)),
+                   QueryArg::new(query_arg::Value::String(username_hash)),
                 ]),
                 &mut *transaction,
             )

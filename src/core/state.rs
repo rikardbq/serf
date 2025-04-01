@@ -4,7 +4,7 @@ use papaya::{Guard, HashMap};
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
-use super::error::{Error, SerfError, UserNotExistError};
+use super::{serf_proto::Error, error::{SerfError, UserNotExistError}};
 
 pub type DatabaseConnections = Arc<HashMap<String, SqlitePool>>;
 pub type Users = Arc<HashMap<String, User>>;

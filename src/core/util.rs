@@ -18,8 +18,9 @@ use super::state::AppState;
 use super::{
     constants::queries,
     db::{fetch_all_as_json, AppliedQuery},
-    error::{DatabaseNotExistError, Error, SerfError},
+    error::{DatabaseNotExistError, SerfError},
     state::User,
+    serf_proto::Error
 };
 
 pub async fn get_or_insert_db_connection<'a>(
@@ -52,7 +53,7 @@ pub async fn get_or_insert_db_connection<'a>(
     Ok(db_connections.get(db_name, db_connections_guard).unwrap())
 }
 
-pub async fn get_db_users(user_db: &str) -> Vec<JsonValue> {
+pub async fn get_db_users(user_db: &str) -> JsonValue {
     let pool = SqlitePool::connect(&format!("sqlite:{}", user_db))
         .await
         .unwrap();
@@ -65,7 +66,7 @@ pub async fn get_db_users(user_db: &str) -> Vec<JsonValue> {
     users
 }
 
-pub fn populate_app_state_users(db_users: Vec<JsonValue>, app_data: &web::Data<AppState>) {
+pub fn populate_app_state_users(db_users: JsonValue, app_data: &web::Data<AppState>) {
     let app_state_users = Arc::clone(&app_data.users);
     let app_state_users_pin = app_state_users.pin();
 
@@ -73,33 +74,64 @@ pub fn populate_app_state_users(db_users: Vec<JsonValue>, app_data: &web::Data<A
         app_state_users_pin.clear();
     }
 
-    db_users.iter().for_each(|x| {
-        let user: User = serde_json::from_value(x.clone()).unwrap();
-        let databases = x.get("databases").unwrap();
-        let db_access_rights = HashMap::new();
-        let db_access_rights_pin = db_access_rights.pin();
+    // TODO: FIX THIS
+    if db_users.is_array() {
+        db_users.as_array().unwrap().iter().for_each(|x| {
+            let user: User = serde_json::from_value(x.clone()).unwrap();
+            let databases = x.get("databases").unwrap();
+            let db_access_rights = HashMap::new();
+            let db_access_rights_pin = db_access_rights.pin();
 
-        if databases.is_array() {
-            databases.as_array().unwrap().iter().for_each(|obj| {
-                serde_json::from_value::<std::collections::HashMap<String, u8>>(obj.clone())
-                    .unwrap()
-                    .iter()
-                    .for_each(|(k, v)| {
-                        db_access_rights_pin.insert(k.clone(), *v);
-                    });
-            });
-        }
+            if databases.is_array() {
+                databases.as_array().unwrap().iter().for_each(|obj| {
+                    serde_json::from_value::<std::collections::HashMap<String, u8>>(obj.clone())
+                        .unwrap()
+                        .iter()
+                        .for_each(|(k, v)| {
+                            db_access_rights_pin.insert(k.clone(), *v);
+                        });
+                });
+            }
 
-        app_state_users_pin.insert(
-            user.username_hash.clone(),
-            User {
-                username: user.username,
-                username_hash: user.username_hash,
-                username_password_hash: user.username_password_hash,
-                db_access_rights: db_access_rights.clone(),
-            },
-        );
-    });
+            app_state_users_pin.insert(
+                user.username_hash.clone(),
+                User {
+                    username: user.username,
+                    username_hash: user.username_hash,
+                    username_password_hash: user.username_password_hash,
+                    db_access_rights: db_access_rights.clone(),
+                },
+            );
+        });
+    }
+    
+    // db_users_vec.iter().for_each(|x| {
+    //     let user: User = serde_json::from_value(x.clone()).unwrap();
+    //     let databases = x.get("databases").unwrap();
+    //     let db_access_rights = HashMap::new();
+    //     let db_access_rights_pin = db_access_rights.pin();
+
+    //     if databases.is_array() {
+    //         databases.as_array().unwrap().iter().for_each(|obj| {
+    //             serde_json::from_value::<std::collections::HashMap<String, u8>>(obj.clone())
+    //                 .unwrap()
+    //                 .iter()
+    //                 .for_each(|(k, v)| {
+    //                     db_access_rights_pin.insert(k.clone(), *v);
+    //                 });
+    //         });
+    //     }
+
+    //     app_state_users_pin.insert(
+    //         user.username_hash.clone(),
+    //         User {
+    //             username: user.username,
+    //             username_hash: user.username_hash,
+    //             username_password_hash: user.username_password_hash,
+    //             db_access_rights: db_access_rights.clone(),
+    //         },
+    //     );
+    // });
 }
 
 fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {

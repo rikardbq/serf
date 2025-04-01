@@ -1,22 +1,14 @@
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use sqlx::query::Query;
 use sqlx::sqlite::{SqliteQueryResult, SqliteRow};
 use sqlx::{Column, Executor, Row};
 use sqlx::{Database, Sqlite, SqlitePool, TypeInfo};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum QueryArg {
-    Int(i64),
-    Float(f64),
-    String(String),
-    Blob(Vec<u8>),
-}
+use crate::core::serf_proto::{query_arg, QueryArg};
 
 pub struct AppliedQuery<'a> {
     query: &'a str,
-    args: Option<Vec<QueryArg>>,
+    args: Option<&'a Vec<QueryArg>>,
 }
 
 impl<'a> AppliedQuery<'a> {
@@ -24,7 +16,7 @@ impl<'a> AppliedQuery<'a> {
         AppliedQuery { query, args: None }
     }
 
-    pub fn with_args(self, args: Vec<QueryArg>) -> Self {
+    pub fn with_args(self, args: &'a Vec<QueryArg>) -> Self {
         AppliedQuery {
             args: Some(args),
             ..self
@@ -51,11 +43,10 @@ where
     apply_query(sqlx::query(q.query), q.args).execute(db).await
 }
 
-
 // parts of this will need to be re-written as part of the protobuf implementation
 fn apply_query<'q>(
     query: Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>>,
-    args: Option<Vec<QueryArg>>,
+    args: Option<&'q Vec<QueryArg>>,
 ) -> Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>> {
     let args = match args {
         Some(args) if !args.is_empty() => args,
@@ -64,12 +55,14 @@ fn apply_query<'q>(
 
     let mut query = query;
     for x in args {
-        query = match x {
-            QueryArg::Int(val) => query.bind(val),
-            QueryArg::Float(val) => query.bind(val),
-            QueryArg::String(val) => query.bind(val),
-            QueryArg::Blob(val) => query.bind(val),
-        };
+        if let Some(query_arg_val) = &x.value {
+            query = match query_arg_val {
+                query_arg::Value::Int(val) => query.bind(val),
+                query_arg::Value::Float(val) => query.bind(val),
+                query_arg::Value::String(val) => query.bind(val),
+                query_arg::Value::Blob(val) => query.bind(val),
+            };
+        }
     }
 
     query
@@ -102,11 +95,12 @@ fn map_sqliterow_col_to_json_value<'a>(
 pub async fn fetch_all_as_json<'a>(
     q: AppliedQuery<'a>,
     db: &'a SqlitePool,
-) -> Result<Vec<JsonValue>, sqlx::error::Error> {
+) -> Result<JsonValue, sqlx::error::Error> {
     let rows = fetch_query(q, db).await?;
-    let result = rows
-        .into_iter()
-        .map(|row| {
+    let mut json_array = JsonValue::Array(vec![]);
+
+    if let JsonValue::Array(ref mut arr) = json_array {
+        rows.into_iter().for_each(|row| {
             let mut json_row = JsonMap::new();
 
             for column in row.columns() {
@@ -122,9 +116,9 @@ pub async fn fetch_all_as_json<'a>(
                 );
             }
 
-            JsonValue::Object(json_row)
-        })
-        .collect();
+            arr.push(JsonValue::Object(json_row));
+        });
+    }
 
-    Ok(result)
+    Ok(json_array)
 }

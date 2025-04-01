@@ -4,33 +4,33 @@ use sqlx::SqlitePool;
 use crate::core::{
     db::{execute_query, fetch_all_as_json, AppliedQuery},
     error::{
-        Error, HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError,
-        UserNotAllowedError,
+        HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError, UserNotAllowedError,
     },
+    serf_proto::{claims::Dat, Error, FetchResponse, MutationResponse, QueryRequest, Sub},
 };
 
-use super::jwt::{
-    generate_claims, Claims, DatKind, FetchResponse, MutationResponse, QueryRequest, Sub,
-};
+use super::proto::{encode_proto, ProtoPackage};
 
 async fn handle_mutate<'a>(
-    request_query: QueryRequest,
+    request_query: &QueryRequest,
     user_access: u8,
+    username_password_hash: &'a str,
     db: &'a SqlitePool,
-) -> Result<Claims, Error> {
+) -> Result<ProtoPackage, Error> {
     if user_access >= 2 {
         let mut transaction = db.begin().await.unwrap();
         match execute_query(
-            AppliedQuery::new(&request_query.query).with_args(request_query.parts),
+            AppliedQuery::new(&request_query.query).with_args(&request_query.parts),
             &mut *transaction,
         )
         .await
         {
             Ok(res) => {
                 let _ = &mut transaction.commit().await;
-                Ok(generate_claims(
-                    MutationResponse::as_dat_kind(res.rows_affected(), res.last_insert_rowid()),
-                    Sub::DATA,
+                Ok(encode_proto(
+                    MutationResponse::as_dat(res.rows_affected(), res.last_insert_rowid() as u64),
+                    Sub::Data,
+                    username_password_hash,
                 ))
             }
             Err(e) => {
@@ -46,18 +46,24 @@ async fn handle_mutate<'a>(
 }
 
 async fn handle_fetch<'a>(
-    request_query: QueryRequest,
+    request_query: &QueryRequest,
     user_access: u8,
+    username_password_hash: &'a str,
     db: &'a SqlitePool,
-) -> Result<Claims, Error> {
+) -> Result<ProtoPackage, Error> {
     if user_access >= 1 {
         match fetch_all_as_json(
-            AppliedQuery::new(&request_query.query).with_args(request_query.parts),
+            AppliedQuery::new(&request_query.query).with_args(&request_query.parts),
             &db,
         )
         .await
         {
-            Ok(res) => Ok(generate_claims(FetchResponse::as_dat_kind(res), Sub::DATA)),
+            // Ok(res) => Ok(generate_claims(FetchResponse::as_dat_kind(res), Sub::DATA)),
+            Ok(res) => Ok(encode_proto(
+                FetchResponse::as_dat(serde_json::to_vec(&res).unwrap()),
+                Sub::Data,
+                username_password_hash,
+            )),
             Err(e) => Err(UndefinedError::with_message(
                 e.as_database_error().unwrap().message(),
             )),
@@ -67,15 +73,17 @@ async fn handle_fetch<'a>(
     }
 }
 
-pub async fn get_query_result_claims<'a>(
-    query_claims: Claims,
+pub async fn get_query_result_proto_package<'a>(
+    dat: &'a Option<Dat>,
+    sub: Sub,
     user_access: u8,
+    username_password_hash: &'a str,
     db: &'a SqlitePool,
-) -> Result<Claims, Error> {
-    if let DatKind::QueryRequest(dat) = query_claims.dat {
-        match query_claims.sub {
-            Sub::MUTATE => handle_mutate(dat, user_access, &db).await,
-            Sub::FETCH => handle_fetch(dat, user_access, &db).await,
+) -> Result<ProtoPackage, Error> {
+    if let Some(Dat::QueryRequest(dat)) = dat {
+        match sub {
+            Sub::Mutate => handle_mutate(dat, user_access, username_password_hash, &db).await,
+            Sub::Fetch => handle_fetch(dat, user_access, username_password_hash, &db).await,
             _ => Err(UndefinedError::default()),
         }
     } else {

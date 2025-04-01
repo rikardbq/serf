@@ -14,13 +14,17 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     core::{
-        constants::queries, db::{execute_query, AppliedQuery, QueryArg}, error::{ErrorKind, SerfError, UndefinedError, UserNotAllowedError}, serf_proto, state::AppState, util::get_or_insert_db_connection
+        constants::queries,
+        db::{execute_query, AppliedQuery},
+        error::{SerfError, UndefinedError, UserNotAllowedError},
+        serf_proto,
+        state::AppState,
+        util::get_or_insert_db_connection,
     },
     web::{
-        jwt::{
-            decode_token, generate_claims, generate_token, DatKind, MigrationRequest,
-            MigrationResponse, Sub,
-        }, proto, request::{RequestBody, ResponseResult}, util::{get_header_value, get_query_result_claims}
+        proto,
+        request::{RequestBody, ResponseResult},
+        util::get_header_value,
     },
 };
 
@@ -51,8 +55,7 @@ async fn handle_testing_proto(
         Err(e) => return HttpResponse::BadRequest().body("asd"),
     };
 
-    let body = proto::decode_proto(req_body.to_vec(), "secret".to_string(), signature_header.to_string());
-
+    let body = proto::decode_proto(req_body.to_vec(), "secret", signature_header.to_string());
 
     // let mut resp = MutationResponse::default();
     // resp.last_insert_row_id = 123;
@@ -77,18 +80,18 @@ async fn handle_testing_proto(
         arr.extend(rows);
     }
 
-//     // must create some custom set of functions to make the building of the responses easier
-//     // see sqlite_server_connector_java
-//     // ProtoPackage struct, ProtoPackageVerifier struct?, ProtoPackageUtil file/mod?, ProtoManager file
-//     // signing and encoding/decoding should be easy and should require minimal duplication of work
+    //     // must create some custom set of functions to make the building of the responses easier
+    //     // see sqlite_server_connector_java
+    //     // ProtoPackage struct, ProtoPackageVerifier struct?, ProtoPackageUtil file/mod?, ProtoManager file
+    //     // signing and encoding/decoding should be easy and should require minimal duplication of work
 
-//     // for the response builder impl a protobuf function to take a Message trait child type that will
-//     // set the body and base headers needed, maybe utilizing a set of functions that manage the whole signing and/or
-//     // serialization/deserialization of the protobuf message.
+    //     // for the response builder impl a protobuf function to take a Message trait child type that will
+    //     // set the body and base headers needed, maybe utilizing a set of functions that manage the whole signing and/or
+    //     // serialization/deserialization of the protobuf message.
 
     fetch_resp.data = serde_json::to_vec(&json_array).unwrap();
-    let ee = FetchResponse::as_dat(serde_json::to_vec(&json_array).unwrap());
-    let asdf = proto::encode_proto(ee, serf_proto::Sub::Data, "my_secret_key");
+    // let ee = FetchResponse::as_dat(serde_json::to_vec(&json_array).unwrap());
+    // let asdf = proto::encode_proto(ee, serf_proto::Sub::Data, "my_secret_key".to_string());
 
     claims.iss = serf_proto::Iss::Server.into();
     claims.sub = serf_proto::Sub::Data.into();

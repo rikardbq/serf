@@ -3,10 +3,16 @@ use hmac::{Hmac, Mac};
 use prost::Message;
 use sha2::Sha256;
 
-use crate::core::serf_proto::claims::Dat;
 use crate::core::serf_proto::{
-    Claims, Iss, QueryArg, MigrationRequest, MigrationResponse, MutationResponse, FetchResponse, QueryRequest, Request, Sub,
+    claims::Dat, query_arg, Claims, FetchResponse, Iss, MigrationRequest, MigrationResponse,
+    MutationResponse, QueryArg, QueryRequest, Request, Sub,
 };
+
+impl QueryArg {
+    pub fn new(value: query_arg::Value) -> Self {
+        QueryArg { value: Some(value) }
+    }
+}
 
 impl QueryRequest {
     pub fn as_dat(query: String, parts: Vec<QueryArg>) -> Dat {
@@ -113,17 +119,17 @@ impl ProtoPackageBuilder {
     }
 }
 
-struct ProtoPackageVerifier {
+struct ProtoPackageVerifier<'a> {
     signature: Option<String>,
-    secret: Option<String>,
+    secret: Option<&'a str>,
     // subject: Option<Sub>,
     issuer: Option<Iss>,
 }
 
-impl ProtoPackageVerifier {
+impl<'a> ProtoPackageVerifier<'a> {
     fn new(
         signature: Option<String>,
-        secret: Option<String>,
+        secret: Option<&'a str>,
         // subject: Option<Sub>,
         issuer: Option<Iss>,
     ) -> Self {
@@ -179,19 +185,19 @@ impl ProtoPackageVerifier {
         decoded
     }
 
-    pub fn builder() -> ProtoPackageVerifierBuilder {
+    pub fn builder() -> ProtoPackageVerifierBuilder<'a> {
         ProtoPackageVerifierBuilder::new()
     }
 }
 
-struct ProtoPackageVerifierBuilder {
+struct ProtoPackageVerifierBuilder<'a> {
     signature: Option<String>,
-    secret: Option<String>,
+    secret: Option<&'a str>,
     // subject: Option<Sub>,
     issuer: Option<Iss>,
 }
 
-impl ProtoPackageVerifierBuilder {
+impl<'a> ProtoPackageVerifierBuilder<'a> {
     fn new() -> Self {
         ProtoPackageVerifierBuilder {
             signature: None,
@@ -208,7 +214,7 @@ impl ProtoPackageVerifierBuilder {
         }
     }
 
-    pub fn with_secret(self, secret: String) -> Self {
+    pub fn with_secret(self, secret: &'a str) -> Self {
         ProtoPackageVerifierBuilder {
             secret: Some(secret),
             ..self
@@ -229,7 +235,7 @@ impl ProtoPackageVerifierBuilder {
         }
     }
 
-    pub fn build(self) -> ProtoPackageVerifier {
+    pub fn build(self) -> ProtoPackageVerifier<'a> {
         ProtoPackageVerifier::new(self.signature, self.secret, self.issuer)
     }
 }
@@ -270,7 +276,7 @@ pub fn encode_proto(data: Dat, subject: Sub, secret: &str) -> ProtoPackage {
         .sign(secret)
 }
 
-pub fn decode_proto(proto_bytes: Vec<u8>, secret: String, signature: String) -> impl Message {
+pub fn decode_proto(proto_bytes: Vec<u8>, secret: &str, signature: String) -> Request {
     let proto_package_verifier = ProtoPackageVerifier::builder()
         .with_signature(signature)
         .with_secret(secret)

@@ -51,7 +51,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(app_data.clone())
             .configure(sqlite_server::web::controller::init_db_controller)
-            .configure(sqlite_server::web::controller::init_token_test_controller)
+            // .configure(sqlite_server::web::controller::init_token_test_controller)
             .configure(sqlite_server::web::controller::init_protobuf_controller)
     })
     .bind((HOST, port))
