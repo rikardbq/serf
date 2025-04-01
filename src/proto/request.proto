@@ -30,7 +30,7 @@ enum ErrorKind {
 
 message Error {
   string message = 1;
-  ErrorKind kind = 2;
+  ErrorKind source = 2;
 }
 
 message Request {
