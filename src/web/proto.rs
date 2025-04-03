@@ -3,8 +3,12 @@ use hmac::{Hmac, Mac};
 use prost::Message;
 use sha2::Sha256;
 
-use crate::core::serf_proto::{
-    claims::Dat, query_arg, Claims, Error, FetchResponse, Iss, MigrationRequest, MigrationResponse, MutationResponse, QueryArg, QueryRequest, Request, Sub
+use crate::core::{
+    error::{SerfError, UndefinedError},
+    serf_proto::{
+        claims::Dat, query_arg, Claims, Error, FetchResponse, Iss, MigrationRequest,
+        MigrationResponse, MutationResponse, QueryArg, QueryRequest, Request, Sub,
+    },
 };
 
 impl QueryArg {
@@ -93,26 +97,39 @@ impl ProtoPackageBuilder {
         }
     }
 
+    pub fn with_error(self, error: Error) -> Self {
+        ProtoPackageBuilder {
+            error: Some(error),
+            ..self
+        }
+    }
+
+    // ToDo: Fix this to maybe be a little cleaner. Quick solution for now
     pub fn sign(self, secret: &str) -> Result<ProtoPackage, Error> {
-        let subject = match self.subject {
-            Some(s) => s,
-            None => panic!("Invalid subject"),
-        };
+        let request: Request;
 
-        let data = match self.data {
-            Some(d) => d,
-            None => panic!("Unexpected dat type"),
-        };
-
-        let claims = generate_claims(data, subject);
-        let request = Request {
-            claims: Some(claims),
-            error: None,
-        };
+        if self.error.is_some() {
+            request = Request {
+                claims: None,
+                error: self.error,
+            }
+        } else if self.subject.is_some() && self.data.is_some() {
+            let claims = generate_claims(self.data.unwrap(), self.subject.unwrap());
+            request = Request {
+                claims: Some(claims),
+                error: None,
+            };
+        } else {
+            return Err(UndefinedError::default());
+        }
 
         let mut buf = Vec::new();
         buf.reserve(request.encoded_len());
-        request.encode(&mut buf).unwrap();
+
+        if let Err(e) = request.encode(&mut buf) {
+            eprintln!("{e}");
+            panic!("Error during request proto encoding");
+        }
 
         let signature = generate_signature(&buf, secret.as_bytes());
 
@@ -275,6 +292,15 @@ pub fn encode_proto(data: Dat, subject: Sub, secret: &str) -> Result<ProtoPackag
         .with_data(data)
         .with_subject(subject)
         .sign(secret)
+}
+
+pub fn encode_error_proto(error: Error, secret: &str) -> ProtoPackage {
+    let proto_package_builder = ProtoPackage::builder();
+
+    proto_package_builder
+        .with_error(error)
+        .sign(secret)
+        .unwrap()
 }
 
 pub fn decode_proto(proto_bytes: Vec<u8>, secret: &str, signature: String) -> Request {
