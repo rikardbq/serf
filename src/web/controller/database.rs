@@ -13,7 +13,7 @@ use crate::{
     },
     web::{
         proto::{decode_proto, encode_proto},
-        util::{get_header_value, get_query_result_proto_package},
+        util::{build_proto_response, get_header_value, get_query_result_proto_package},
     },
 };
 
@@ -93,10 +93,7 @@ async fn handle_db_post(
         },
     };
 
-    HttpResponse::Ok()
-        .insert_header(("Content-Type", "application/protobuf"))
-        .insert_header(("0", proto_package.signature))
-        .body(proto_package.data)
+    build_proto_response(&mut HttpResponse::Ok(), proto_package)
 }
 
 #[post("/{database}/m")]
@@ -218,8 +215,5 @@ async fn handle_db_migration_post(
             }
         };
 
-    HttpResponse::Ok()
-        .insert_header(("Content-Type", "application/protobuf"))
-        .insert_header(("0", proto_package.signature))
-        .body(proto_package.data)
+    build_proto_response(&mut HttpResponse::Ok(), proto_package)
 }

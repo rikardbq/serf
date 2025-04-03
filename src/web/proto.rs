@@ -4,8 +4,7 @@ use prost::Message;
 use sha2::Sha256;
 
 use crate::core::serf_proto::{
-    claims::Dat, query_arg, Claims, FetchResponse, Iss, MigrationRequest, MigrationResponse,
-    MutationResponse, QueryArg, QueryRequest, Request, Sub,
+    claims::Dat, query_arg, Claims, Error, FetchResponse, Iss, MigrationRequest, MigrationResponse, MutationResponse, QueryArg, QueryRequest, Request, Sub
 };
 
 impl QueryArg {
@@ -68,6 +67,7 @@ impl ProtoPackage {
 pub struct ProtoPackageBuilder {
     data: Option<Dat>,
     subject: Option<Sub>,
+    error: Option<Error>,
 }
 
 impl ProtoPackageBuilder {
@@ -75,6 +75,7 @@ impl ProtoPackageBuilder {
         ProtoPackageBuilder {
             data: None,
             subject: None,
+            error: None,
         }
     }
 
@@ -92,7 +93,7 @@ impl ProtoPackageBuilder {
         }
     }
 
-    pub fn sign(self, secret: &str) -> ProtoPackage {
+    pub fn sign(self, secret: &str) -> Result<ProtoPackage, Error> {
         let subject = match self.subject {
             Some(s) => s,
             None => panic!("Invalid subject"),
@@ -115,7 +116,7 @@ impl ProtoPackageBuilder {
 
         let signature = generate_signature(&buf, secret.as_bytes());
 
-        ProtoPackage::new(buf, signature)
+        Ok(ProtoPackage::new(buf, signature))
     }
 }
 
@@ -267,7 +268,7 @@ fn generate_claims(data: Dat, subject: Sub) -> Claims {
     }
 }
 
-pub fn encode_proto(data: Dat, subject: Sub, secret: &str) -> ProtoPackage {
+pub fn encode_proto(data: Dat, subject: Sub, secret: &str) -> Result<ProtoPackage, Error> {
     let proto_package_builder = ProtoPackage::builder();
 
     proto_package_builder

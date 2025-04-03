@@ -1,4 +1,4 @@
-use actix_web::http::header::HeaderValue;
+use actix_web::{http::header::HeaderValue, HttpResponse, HttpResponseBuilder};
 use sqlx::SqlitePool;
 
 use crate::core::{
@@ -12,7 +12,7 @@ use crate::core::{
 use super::proto::{encode_proto, ProtoPackage};
 
 async fn handle_mutate<'a>(
-    request_query: &QueryRequest,
+    request_query: &'a QueryRequest,
     user_access: u8,
     username_password_hash: &'a str,
     db: &'a SqlitePool,
@@ -27,11 +27,11 @@ async fn handle_mutate<'a>(
         {
             Ok(res) => {
                 let _ = &mut transaction.commit().await;
-                Ok(encode_proto(
+                encode_proto(
                     MutationResponse::as_dat(res.rows_affected(), res.last_insert_rowid() as u64),
                     Sub::Data,
                     username_password_hash,
-                ))
+                )
             }
             Err(e) => {
                 let _ = &mut transaction.rollback().await;
@@ -46,7 +46,7 @@ async fn handle_mutate<'a>(
 }
 
 async fn handle_fetch<'a>(
-    request_query: &QueryRequest,
+    request_query: &'a QueryRequest,
     user_access: u8,
     username_password_hash: &'a str,
     db: &'a SqlitePool,
@@ -58,12 +58,11 @@ async fn handle_fetch<'a>(
         )
         .await
         {
-            // Ok(res) => Ok(generate_claims(FetchResponse::as_dat_kind(res), Sub::DATA)),
-            Ok(res) => Ok(encode_proto(
+            Ok(res) => encode_proto(
                 FetchResponse::as_dat(serde_json::to_vec(&res).unwrap()),
                 Sub::Data,
                 username_password_hash,
-            )),
+            ),
             Err(e) => Err(UndefinedError::with_message(
                 e.as_database_error().unwrap().message(),
             )),
@@ -99,4 +98,14 @@ pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, Error> {
         },
         None => Err(HeaderMissingError::default()),
     }
+}
+
+pub fn build_proto_response(
+    response_builder: &mut HttpResponseBuilder,
+    proto_package: ProtoPackage,
+) -> HttpResponse {
+    response_builder
+        .insert_header(("Content-Type", "application/protobuf"))
+        .insert_header(("0", proto_package.signature))
+        .body(proto_package.data)
 }

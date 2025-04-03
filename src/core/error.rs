@@ -1,7 +1,7 @@
 use core::str;
 use std::fmt;
 
-use crate::core::serf_proto::{Error, ErrorKind};
+use super::serf_proto::{Error, ErrorKind};
 
 pub const UNDEFINED: &str = "Undefined server error";
 pub const DATABASE_NOT_EXIST: &str = "Database doesn't exist";
