@@ -3,7 +3,7 @@ use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 use crate::{
     core::{
         error::{SerfError, UndefinedError},
-        serf_proto::{ErrorKind, Request, Sub},
+        serf_proto::{ErrorKind, Request},
         state::AppState,
         util::get_or_insert_db_connection,
     },
@@ -131,13 +131,6 @@ async fn handle_db_migration_post(
             )
         }
     };
-
-    if claims.sub() != Sub::Migrate {
-        return build_proto_response(
-            &mut HttpResponse::InternalServerError(),
-            encode_error_proto(UndefinedError::default(), &user.username_password_hash),
-        );
-    }
 
     let db_connections_guard = data.db_connections_guard();
     let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
