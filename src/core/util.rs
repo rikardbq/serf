@@ -19,8 +19,8 @@ use super::{
     constants::queries,
     db::{fetch_all_as_json, AppliedQuery},
     error::{DatabaseNotExistError, SerfError},
+    serf_proto::Error,
     state::User,
-    serf_proto::Error
 };
 
 pub async fn get_or_insert_db_connection<'a>(
@@ -28,7 +28,8 @@ pub async fn get_or_insert_db_connection<'a>(
     data: &'a web::Data<AppState>,
     db_name: &'a str,
 ) -> Result<&'a SqlitePool, Error> {
-    let db_connections: Arc<papaya::HashMap<String, SqlitePool>> = Arc::clone(&data.db_connections);
+    let db_connections: Arc<papaya::HashMap<Arc<str>, SqlitePool>> =
+        Arc::clone(&data.db_connections);
 
     if !db_connections.contains_key(db_name, db_connections_guard) {
         println!(
@@ -44,7 +45,7 @@ pub async fn get_or_insert_db_connection<'a>(
             ))
             .await
         {
-            db_connections.insert(db_name.to_owned(), pool, db_connections_guard);
+            db_connections.insert(Arc::from(db_name), pool, db_connections_guard);
         } else {
             return Err(DatabaseNotExistError::default());
         }
@@ -84,7 +85,7 @@ pub fn populate_app_state_users(db_users: JsonValue, app_data: &web::Data<AppSta
 
             if databases.is_array() {
                 databases.as_array().unwrap().iter().for_each(|obj| {
-                    serde_json::from_value::<std::collections::HashMap<String, u8>>(obj.clone())
+                    serde_json::from_value::<std::collections::HashMap<Arc<str>, u8>>(obj.clone())
                         .unwrap()
                         .iter()
                         .for_each(|(k, v)| {
@@ -94,7 +95,7 @@ pub fn populate_app_state_users(db_users: JsonValue, app_data: &web::Data<AppSta
             }
 
             app_state_users_pin.insert(
-                user.username_hash.clone(),
+                Arc::from(user.username_hash.as_str()),
                 User {
                     username: user.username,
                     username_hash: user.username_hash,
@@ -104,7 +105,7 @@ pub fn populate_app_state_users(db_users: JsonValue, app_data: &web::Data<AppSta
             );
         });
     }
-    
+
     // db_users_vec.iter().for_each(|x| {
     //     let user: User = serde_json::from_value(x.clone()).unwrap();
     //     let databases = x.get("databases").unwrap();

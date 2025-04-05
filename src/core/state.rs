@@ -6,8 +6,8 @@ use sqlx::SqlitePool;
 
 use super::{serf_proto::Error, error::{SerfError, UserNotExistError}};
 
-pub type DatabaseConnections = Arc<HashMap<String, SqlitePool>>;
-pub type Users = Arc<HashMap<String, User>>;
+pub type DatabaseConnections = Arc<HashMap<Arc<str>, SqlitePool>>;
+pub type Users = Arc<HashMap<Arc<str>, User>>;
 
 #[derive(Debug)]
 pub struct AppState {
@@ -45,7 +45,7 @@ pub struct User {
     pub username_hash: String,
     pub username_password_hash: String,
     #[serde(skip)]
-    pub db_access_rights: HashMap<String, u8>,
+    pub db_access_rights: HashMap<Arc<str>, u8>,
 }
 
 impl User {
