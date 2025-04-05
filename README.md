@@ -36,6 +36,9 @@ Example:
 $ ./serf-cli modify user access -u <username> -db <db_name> -ar <access_right>
 ```
 
+#### NOTE:
+- A great tool for exploring and modifying SQLite databases that I use is [DB Browser for SQLite](https://sqlitebrowser.org/)
+
 ---
 
 #### SERVER
