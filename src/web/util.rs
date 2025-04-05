@@ -15,6 +15,18 @@ use crate::core::{
 
 use super::proto::{encode_proto, ProtoPackage};
 
+pub trait HttpProtoResponse {
+    fn protobuf(&mut self, proto_package: ProtoPackage) -> HttpResponse;
+}
+
+impl HttpProtoResponse for HttpResponseBuilder {
+    fn protobuf(&mut self, proto_package: ProtoPackage) -> HttpResponse {
+        self.insert_header(("Content-Type", "application/protobuf"))
+            .insert_header(("0", proto_package.signature))
+            .body(proto_package.data)
+    }
+}
+
 async fn handle_migrate<'a>(
     migration: &'a MigrationRequest,
     user_access: u8,
@@ -172,14 +184,4 @@ pub fn extract_headers<'a>(req: &'a HttpRequest) -> Result<(&'a str, &'a str), E
     let header_proto_signature = get_header_value(req.headers().get("1"))?;
 
     Ok((header_username_hash, header_proto_signature))
-}
-
-pub fn build_proto_response(
-    response_builder: &mut HttpResponseBuilder,
-    proto_package: ProtoPackage,
-) -> HttpResponse {
-    response_builder
-        .insert_header(("Content-Type", "application/protobuf"))
-        .insert_header(("0", proto_package.signature))
-        .body(proto_package.data)
 }

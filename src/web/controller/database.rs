@@ -9,7 +9,7 @@ use crate::{
     },
     web::{
         proto::{decode_proto, encode_error_proto},
-        util::{build_proto_response, extract_headers, get_proto_package_result},
+        util::{extract_headers, get_proto_package_result, HttpProtoResponse},
     },
 };
 
@@ -48,10 +48,10 @@ async fn handle_db_post(
     let claims = match decoded_proto.claims {
         Some(c) => c,
         None => {
-            return build_proto_response(
-                &mut HttpResponse::InternalServerError(),
-                encode_error_proto(UndefinedError::default(), &user.username_password_hash),
-            )
+            return HttpResponse::InternalServerError().protobuf(encode_error_proto(
+                UndefinedError::default(),
+                &user.username_password_hash,
+            ));
         }
     };
 
@@ -59,10 +59,8 @@ async fn handle_db_post(
     let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
         Ok(conn) => conn,
         Err(e) => {
-            return build_proto_response(
-                &mut HttpResponse::NotFound(),
-                encode_error_proto(e, &user.username_password_hash),
-            );
+            return HttpResponse::NotFound()
+                .protobuf(encode_error_proto(e, &user.username_password_hash));
         }
     };
 
@@ -78,21 +76,17 @@ async fn handle_db_post(
         Ok(res) => res,
         Err(e) => match e.source() {
             ErrorKind::UserNotAllowed => {
-                return build_proto_response(
-                    &mut HttpResponse::Forbidden(),
-                    encode_error_proto(e, &user.username_password_hash),
-                );
+                return HttpResponse::Forbidden()
+                    .protobuf(encode_error_proto(e, &user.username_password_hash))
             }
             _ => {
-                return build_proto_response(
-                    &mut HttpResponse::InternalServerError(),
-                    encode_error_proto(e, &user.username_password_hash),
-                );
+                return HttpResponse::InternalServerError()
+                    .protobuf(encode_error_proto(e, &user.username_password_hash))
             }
         },
     };
 
-    build_proto_response(&mut HttpResponse::Ok(), proto_package)
+    HttpResponse::Ok().protobuf(proto_package)
 }
 
 #[post("/{database}/m")]
@@ -125,10 +119,10 @@ async fn handle_db_migration_post(
     let claims = match decoded_proto.claims {
         Some(c) => c,
         None => {
-            return build_proto_response(
-                &mut HttpResponse::InternalServerError(),
-                encode_error_proto(UndefinedError::default(), &user.username_password_hash),
-            )
+            return HttpResponse::InternalServerError().protobuf(encode_error_proto(
+                UndefinedError::default(),
+                &user.username_password_hash,
+            ));
         }
     };
 
@@ -136,10 +130,8 @@ async fn handle_db_migration_post(
     let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
         Ok(conn) => conn,
         Err(e) => {
-            return build_proto_response(
-                &mut HttpResponse::NotFound(),
-                encode_error_proto(e, &user.username_password_hash),
-            );
+            return HttpResponse::NotFound()
+                .protobuf(encode_error_proto(e, &user.username_password_hash));
         }
     };
 
@@ -155,19 +147,15 @@ async fn handle_db_migration_post(
         Ok(res) => res,
         Err(e) => match e.source() {
             ErrorKind::UserNotAllowed => {
-                return build_proto_response(
-                    &mut HttpResponse::Forbidden(),
-                    encode_error_proto(e, &user.username_password_hash),
-                );
+                return HttpResponse::Forbidden()
+                    .protobuf(encode_error_proto(e, &user.username_password_hash));
             }
             _ => {
-                return build_proto_response(
-                    &mut HttpResponse::InternalServerError(),
-                    encode_error_proto(e, &user.username_password_hash),
-                );
+                return HttpResponse::InternalServerError()
+                    .protobuf(encode_error_proto(e, &user.username_password_hash));
             }
         },
     };
 
-    build_proto_response(&mut HttpResponse::Ok(), proto_package)
+    HttpResponse::Ok().protobuf(proto_package)
 }
