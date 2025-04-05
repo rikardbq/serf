@@ -1,5 +1,5 @@
 [package]
-name = "sqlite_server"
+name = "serf"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,22 +9,23 @@ name = "test"
 path = "src/bin/test.rs"
 
 [[bin]]
-name = "sqlite_server_srv"
-path = "src/bin/sqlite_server_srv.rs"
+name = "serf"
+path = "src/bin/serf.rs"
 
 [[bin]]
-name = "sqlite_server_cli"
-path = "src/bin/sqlite_server_cli.rs"
+name = "serf-cli"
+path = "src/bin/serf-cli.rs"
 
 [dependencies]
 actix-web = "4.9.0"
 base16ct = { version = "0.2.0", features = ["alloc"] }
 chrono = "0.4.39"
 futures = "0.3.31"
+hmac = "0.12.1"
 jsonwebtoken = "9.3.0"
 notify = "8.0.0"
-papaya = "0.1.7"
-rbase64 = "2.0.3"
+papaya = "0.2.1"
+prost = "0.13.5"
 regex = { version = "1.11.1", features = ["std"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"
@@ -34,4 +35,6 @@ tokio = { version = "1.43.0", features = ["macros", "rt", "rt-multi-thread"] }
 
 [build-dependencies]
 base16ct = { version = "0.2.0", features = ["alloc"] }
+prost-build = "0.13.5"
+protoc-bin-vendored = "3.1.0"
 sha2 = "0.10.8"

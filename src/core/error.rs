@@ -1,7 +1,7 @@
 use core::str;
 use std::fmt;
 
-use serde::Serialize;
+use super::serf_proto::{Error, ErrorKind};
 
 pub const UNDEFINED: &str = "Undefined server error";
 pub const DATABASE_NOT_EXIST: &str = "Database doesn't exist";
@@ -11,26 +11,9 @@ pub const HEADER_MISSING: &str = "Request is missing a required header";
 pub const HEADER_MALFORMED: &str = "Request header value is malformed";
 pub const RESOURCE_NOT_EXIST: &str = "Resource doesn't exist";
 
-#[derive(Debug, PartialEq, Serialize)]
-pub enum ErrorKind {
-    Undefined,
-    DatabaseNotExist,
-    UserNotExist,
-    UserNotAllowed,
-    HeaderMissing,
-    HeaderMalformed,
-    ResourceNotExist,
-}
-
 pub trait SerfError<'a> {
     fn default() -> Error;
     fn with_message(message: &'a str) -> Error;
-}
-
-#[derive(Debug, Serialize)]
-pub struct Error {
-    pub message: String,
-    pub source: ErrorKind,
 }
 
 pub struct UndefinedError;
@@ -44,7 +27,7 @@ impl Error {
     pub fn new(message: &str, kind: ErrorKind) -> Self {
         Error {
             message: message.to_string(),
-            source: kind,
+            source: kind.into(),
         }
     }
 }
@@ -121,14 +104,15 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for ErrorKind {}
+// may need to dig a little more on how to fix this shit if its even needed?
+// impl std::error::Error for ErrorKind {}
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.source)
-    }
+// impl std::error::Error for Error {
+//     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+//         Some(&self.source())
+//     }
 
-    fn cause(&self) -> Option<&dyn std::error::Error> {
-        self.source()
-    }
-}
+//     fn cause(&self) -> Option<&dyn std::error::Error> {
+//         self.source()
+//     }
+// }

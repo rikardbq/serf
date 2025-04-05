@@ -1,3 +1,4 @@
+use prost_build;
 use sha2::Digest;
 use sha2::Sha256;
 use std::env;
@@ -41,5 +42,18 @@ fn main() {
         ),
     )
     .unwrap();
+
+    let mut prost_build = prost_build::Config::new();
+    prost_build.protoc_executable(protoc_bin_vendored::protoc_bin_path().unwrap());
+    prost_build
+        .compile_protos(
+            &[
+                "src/proto/claims_util.proto",
+                "src/proto/request.proto",
+            ],
+            &["src/proto/"],
+        )
+        .unwrap();
+
     println!("cargo::rerun-if-changed=build.rs");
 }

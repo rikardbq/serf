@@ -24,7 +24,7 @@ if [ ! -d "$SERF_ROOT_DIR" ]; then
     mkdir $SERF_ROOT_DIR
 fi
 
-cp -t $SERF_ROOT_DIR $TARGET_DIR/sqlite_server_srv $TARGET_DIR/sqlite_server_cli
+cp -t $SERF_ROOT_DIR $TARGET_DIR/serf $TARGET_DIR/serf-cli
 
 echo "[COMPLETE::COPY_EXECUTABLES]"
 

@@ -30,9 +30,10 @@
 - [x] change usage of name "base_query in dat claim" to "query"
 - [x] handle updates to the user management db so that the Arc handle gets the latest user hashmap
     - use "notify" crate to listen on the db file change
-- [-] use serde de/serialization for internal data types
-    - [] implement custom papaya::HashMap serialize / deserialize trait
-    - [] use claim kind specific data type instead of string.
+- [-] ~~use serde de/serialization for internal data types~~
+    - [] ~~implement custom papaya::HashMap serialize / deserialize trait~~
+    - [] ~~use claim kind specific data type instead of string.~~
+- [x] add protobuf support and move away from json and jwt
 - [] CACHE queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap
@@ -51,7 +52,6 @@
                     (base64-query-string_3),
                     (base64-query-string_4)
                 ]
-        
 ---
 
 
@@ -61,13 +61,22 @@
 - [] Cache bust on write to table
 - [] Cache eviction rules setup
 
-### BRANCH USER DB NOTIFY
+### BRANCH PROTOBUF
+---
+- [x] add support for proto files
+- [x] replace old model structs with prost protobuf generated types
+- [x] update query / mutation endpoint to receive and respond with protobuf binary data
+- [x] update migrate endpoint to receive and respond with protobuf binary data
+- [x] add builder structs for proto request struct
+- [x] replace JWT
+
+### BRANCH USER DB NOTIFY (merged)
 ---
 - [x] add fs file change event listener (notify) for server user db
 - [x] handle update AppState on change
 - [x] write util function for managing re/loading users into app state
 
-### BRANCH REFACTORING
+### BRANCH REFACTORING (merged)
 ---
 - [x] update errors
 - [x] cleanup CLI
@@ -75,7 +84,7 @@
 - [x] cleanup db controller
 - [x] minor stuff here and there
 
-### BRANCH MIGRATIONS
+### BRANCH MIGRATIONS (merged)
 ---
 - [x] Set up migrations (  {database}/m  ) endpoint
 - [x] Handle multiple migrations coming to endpoint as bundle
@@ -84,7 +93,7 @@
 - [x] Add migrations support to JS connector lib, I.E consumer-side tracking file + some form of migration verification step.
 - [x] Apply migrations 1 by 1
 
-### BRANCH WORK/DECLUTTER
+### BRANCH WORK/DECLUTTER (merged)
 ---
 - [x] Create utility functions to handle CLI args in a simpler way
 - [x] Create utility functions for retreiving database connections, check user access
