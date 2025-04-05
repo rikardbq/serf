@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use actix_web::{web, App, HttpServer};
 use papaya::HashMap;
-use sqlite_server::core::constants::cli;
-use sqlite_server::core::state::AppState;
-use sqlite_server::{
+use serf::core::constants::cli;
+use serf::core::state::AppState;
+use serf::{
     cli::util::get_flag_val,
     core::util::{async_watch, get_db_users, populate_app_state_users},
 };
@@ -50,7 +50,7 @@ async fn main() -> std::io::Result<()> {
     let srv = HttpServer::new(move || {
         App::new()
             .app_data(app_data.clone())
-            .configure(sqlite_server::web::controller::init_db_controller)
+            .configure(serf::web::controller::init_db_controller)
     })
     .bind((HOST, port))
     .unwrap()

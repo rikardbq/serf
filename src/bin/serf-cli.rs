@@ -1,7 +1,7 @@
 use std::env;
 
-use sqlite_server::cli::util::{get_flag_val, DatabaseManager};
-use sqlite_server::core::constants::cli;
+use serf::cli::util::{get_flag_val, DatabaseManager};
+use serf::core::constants::cli;
 use sqlx::{migrate::MigrateDatabase, Sqlite};
 
 // DEFAULTS:
