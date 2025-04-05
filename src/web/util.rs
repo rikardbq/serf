@@ -8,8 +8,7 @@ use crate::core::{
         HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError, UserNotAllowedError,
     },
     serf_proto::{
-        claims::Dat, query_arg, Error, FetchResponse, MigrationRequest, MigrationResponse,
-        MutationResponse, QueryArg, QueryRequest, Sub,
+        claims::Dat, query_arg, Claims, Error, FetchResponse, MigrationRequest, MigrationResponse, MutationResponse, QueryArg, QueryRequest, Sub
     },
 };
 
@@ -28,7 +27,7 @@ impl HttpProtoResponse for HttpResponseBuilder {
 }
 
 async fn handle_migrate<'a>(
-    migration: &'a MigrationRequest,
+    migration: &MigrationRequest,
     user_access: u8,
     username_password_hash: &'a str,
     db: &'a SqlitePool,
@@ -88,7 +87,7 @@ async fn handle_migrate<'a>(
 }
 
 async fn handle_mutate<'a>(
-    request_query: &'a QueryRequest,
+    request_query: &QueryRequest,
     user_access: u8,
     username_password_hash: &'a str,
     db: &'a SqlitePool,
@@ -122,7 +121,7 @@ async fn handle_mutate<'a>(
 }
 
 async fn handle_fetch<'a>(
-    request_query: &'a QueryRequest,
+    request_query: &QueryRequest,
     user_access: u8,
     username_password_hash: &'a str,
     db: &'a SqlitePool,
@@ -149,18 +148,17 @@ async fn handle_fetch<'a>(
 }
 
 pub async fn get_proto_package_result<'a>(
-    dat: &'a Option<Dat>,
-    sub: Sub,
+    claims: Claims,
     user_access: u8,
     username_password_hash: &'a str,
     db: &'a SqlitePool,
 ) -> Result<ProtoPackage, Error> {
-    match dat {
-        Some(Dat::MigrationRequest(dat)) => match sub {
+    match &claims.dat {
+        Some(Dat::MigrationRequest(dat)) => match claims.sub() {
             Sub::Migrate => handle_migrate(dat, user_access, username_password_hash, &db).await,
             _ => Err(UndefinedError::default()),
         },
-        Some(Dat::QueryRequest(dat)) => match sub {
+        Some(Dat::QueryRequest(dat)) => match claims.sub() {
             Sub::Mutate => handle_mutate(dat, user_access, username_password_hash, &db).await,
             Sub::Fetch => handle_fetch(dat, user_access, username_password_hash, &db).await,
             _ => Err(UndefinedError::default()),

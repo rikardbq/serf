@@ -58,8 +58,8 @@ pub struct ProtoPackage {
 impl ProtoPackage {
     fn new(data: Vec<u8>, signature: String) -> Self {
         ProtoPackage {
-            data: data,
-            signature: signature,
+            data,
+            signature,
         }
     }
 
@@ -138,7 +138,7 @@ impl ProtoPackageBuilder {
 }
 
 struct ProtoPackageVerifier<'a> {
-    signature: Option<String>,
+    signature: Option<&'a str>,
     secret: Option<&'a str>,
     // subject: Option<Sub>,
     issuer: Option<Iss>,
@@ -146,7 +146,7 @@ struct ProtoPackageVerifier<'a> {
 
 impl<'a> ProtoPackageVerifier<'a> {
     fn new(
-        signature: Option<String>,
+        signature: Option<&'a str>,
         secret: Option<&'a str>,
         // subject: Option<Sub>,
         issuer: Option<Iss>,
@@ -159,7 +159,7 @@ impl<'a> ProtoPackageVerifier<'a> {
         }
     }
 
-    pub fn verify(self, data: Vec<u8>) -> Request {
+    pub fn verify(self, data: &[u8]) -> Request {
         if self.signature.is_none() {
             panic!("missing signature to compare");
         }
@@ -169,7 +169,7 @@ impl<'a> ProtoPackageVerifier<'a> {
         }
 
         if !verify_signature(
-            &data,
+            data,
             self.signature.unwrap(),
             self.secret.unwrap().as_bytes(),
         ) {
@@ -209,7 +209,7 @@ impl<'a> ProtoPackageVerifier<'a> {
 }
 
 struct ProtoPackageVerifierBuilder<'a> {
-    signature: Option<String>,
+    signature: Option<&'a str>,
     secret: Option<&'a str>,
     // subject: Option<Sub>,
     issuer: Option<Iss>,
@@ -225,7 +225,7 @@ impl<'a> ProtoPackageVerifierBuilder<'a> {
         }
     }
 
-    pub fn with_signature(self, signature: String) -> Self {
+    pub fn with_signature(self, signature: &'a str) -> Self {
         ProtoPackageVerifierBuilder {
             signature: Some(signature),
             ..self
@@ -258,7 +258,7 @@ impl<'a> ProtoPackageVerifierBuilder<'a> {
     }
 }
 
-fn verify_signature(data: &[u8], signature: String, secret: &[u8]) -> bool {
+fn verify_signature(data: &[u8], signature: &str, secret: &[u8]) -> bool {
     signature == generate_signature(data, secret)
 }
 
@@ -303,7 +303,7 @@ pub fn encode_error_proto(error: Error, secret: &str) -> ProtoPackage {
         .unwrap()
 }
 
-pub fn decode_proto(proto_bytes: Vec<u8>, secret: &str, signature: String) -> Request {
+pub fn decode_proto(proto_bytes: &[u8], secret: &str, signature: &str) -> Request {
     let proto_package_verifier = ProtoPackageVerifier::builder()
         .with_signature(signature)
         .with_secret(secret)

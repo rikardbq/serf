@@ -40,9 +40,9 @@ async fn handle_db_post(
     };
 
     let decoded_proto: Request = decode_proto(
-        req_body.to_vec(),
+        req_body.iter().as_slice(),
         &user.username_password_hash,
-        header_proto_signature.to_string(),
+        header_proto_signature,
     );
 
     let claims = match decoded_proto.claims {
@@ -65,8 +65,7 @@ async fn handle_db_post(
     };
 
     let proto_package = match get_proto_package_result(
-        &claims.dat,
-        claims.sub(),
+        claims,
         user.get_access_right(&db_name),
         &user.username_password_hash,
         &db,
@@ -111,9 +110,9 @@ async fn handle_db_migration_post(
     };
 
     let decoded_proto: Request = decode_proto(
-        req_body.to_vec(),
+        req_body.iter().as_slice(),
         &user.username_password_hash,
-        header_proto_signature.to_string(),
+        header_proto_signature,
     );
 
     let claims = match decoded_proto.claims {
@@ -136,8 +135,7 @@ async fn handle_db_migration_post(
     };
 
     let proto_package = match get_proto_package_result(
-        &claims.dat,
-        claims.sub(),
+        claims,
         user.get_access_right(&db_name),
         &user.username_password_hash,
         &db,

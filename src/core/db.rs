@@ -8,7 +8,7 @@ use crate::core::serf_proto::{query_arg, QueryArg};
 
 pub struct AppliedQuery<'a> {
     query: &'a str,
-    args: Option<&'a Vec<QueryArg>>,
+    args: Option<&'a [QueryArg]>,
 }
 
 impl<'a> AppliedQuery<'a> {
@@ -16,7 +16,7 @@ impl<'a> AppliedQuery<'a> {
         AppliedQuery { query, args: None }
     }
 
-    pub fn with_args(self, args: &'a Vec<QueryArg>) -> Self {
+    pub fn with_args(self, args: &'a [QueryArg]) -> Self {
         AppliedQuery {
             args: Some(args),
             ..self
@@ -46,7 +46,7 @@ where
 // parts of this will need to be re-written as part of the protobuf implementation
 fn apply_query<'q>(
     query: Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>>,
-    args: Option<&'q Vec<QueryArg>>,
+    args: Option<&'q [QueryArg]>,
 ) -> Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>> {
     let args = match args {
         Some(args) if !args.is_empty() => args,
