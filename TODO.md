@@ -41,15 +41,15 @@
 - [x] change usage of name "base_query in dat claim" to "query"
 - [x] handle updates to the user management db so that the Arc handle gets the latest user hashmap
 - [x] use "notify" crate to listen on the db file change
-- [-] ~~use serde de/serialization for internal data types~~
-    - [-] ~~implement custom papaya::HashMap serialize / deserialize trait~~
-    - [-] ~~use claim kind specific data type instead of string.~~
+- [ ] ~~use serde de/serialization for internal data types~~
+    - [ ] ~~implement custom papaya::HashMap serialize / deserialize trait~~
+    - [ ] ~~use claim kind specific data type instead of string.~~
 - [x] add protobuf support and move away from json and jwt
 
 ---
 
 - [-] start to add unit tests / doc tests + integration testing
-- [] cache queries
+- [ ] cache queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap
         - use base64 encoded version of the query
@@ -73,13 +73,13 @@
 ### BRANCH QUERY-CACHING (will come some time... need to come up with a good cache eviction solution)
 ---
 - [-] Query caching (stashed changes for now)
-- [] Cache bust on write to table
-- [] Cache eviction rules setup
+- [ ] Cache bust on write to table
+- [ ] Cache eviction rules setup
 
 ### BRANCH TESTING
 ---
 - [-] unit tests where applicable
-    - [] doc tests
+    - [ ] doc tests
 - [-] integration tests
 - [-] refactor to make testing more intuitive
 
