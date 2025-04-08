@@ -18,7 +18,7 @@ use super::state::AppState;
 use super::{
     constants::queries,
     db::{fetch_all_as_json, AppliedQuery},
-    error::{DatabaseNotExistError, SerfError},
+    error::{SerfError, ResourceNotExistError},
     serf_proto::Error,
     state::User,
 };
@@ -52,7 +52,9 @@ pub async fn get_or_insert_db_connection<'a>(
         {
             db_connections.insert(Arc::from(db_name), pool, db_connections_guard);
         } else {
-            return Err(DatabaseNotExistError::default());
+            return Err(ResourceNotExistError::with_message(
+                "Database doesn't exist",
+            ));
         }
     }
 

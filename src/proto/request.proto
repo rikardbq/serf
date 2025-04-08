@@ -20,7 +20,7 @@ message Claims {
 
 enum ErrorKind {
     Undefined = 0;
-    DatabaseNotExist = 1;
+    DatabaseError = 1;
     UserNotExist = 2;
     UserNotAllowed = 3;
     HeaderMissing = 4;

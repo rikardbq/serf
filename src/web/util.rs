@@ -10,7 +10,7 @@ use crate::core::{
     constants::queries,
     db::{execute_query, fetch_all_as_json, AppliedQuery},
     error::{
-        HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError, UserNotAllowedError,
+        DatabaseError, HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError, UserNotAllowedError
     },
     serf_proto::{
         claims::Dat, query_arg, Claims, Error, FetchResponse, MigrationRequest, MigrationResponse,
@@ -82,7 +82,7 @@ impl<'a> RequestHandler<ProtoPackage> for ProtoPackageResultHandler<'a> {
                         Sub::Data,
                         self.username_password_hash,
                     ),
-                    Err(e) => Err(UndefinedError::with_message(
+                    Err(e) => Err(DatabaseError::with_message(
                         e.as_database_error().unwrap().message(),
                     )),
                 }
@@ -118,7 +118,7 @@ impl<'a> RequestHandler<ProtoPackage> for ProtoPackageResultHandler<'a> {
                     }
                     Err(e) => {
                         let _ = &mut transaction.rollback().await;
-                        Err(UndefinedError::with_message(
+                        Err(DatabaseError::with_message(
                             e.as_database_error().unwrap().message(),
                         ))
                     }
@@ -155,14 +155,14 @@ impl<'a> RequestHandler<ProtoPackage> for ProtoPackageResultHandler<'a> {
                         .await
                         {
                             let _ = &mut transaction.rollback().await;
-                            return Err(UndefinedError::with_message(
+                            return Err(DatabaseError::with_message(
                                 e.as_database_error().unwrap().message(),
                             ));
                         }
                     }
                     Err(e) => {
                         let _ = &mut transaction.rollback().await;
-                        return Err(UndefinedError::with_message(
+                        return Err(DatabaseError::with_message(
                             e.as_database_error().unwrap().message(),
                         ));
                     }
