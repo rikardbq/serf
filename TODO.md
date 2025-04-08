@@ -34,6 +34,7 @@
     - [] ~~implement custom papaya::HashMap serialize / deserialize trait~~
     - [] ~~use claim kind specific data type instead of string.~~
 - [x] add protobuf support and move away from json and jwt
+- [-] start to add unit tests / doc tests + integration testing
 - [] CACHE queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap
@@ -60,6 +61,13 @@
 - [-] Query caching (stashed changes for now)
 - [] Cache bust on write to table
 - [] Cache eviction rules setup
+
+### BRANCH TESTING
+---
+- [-] unit tests where applicable
+    - [] doc tests
+- [-] integration tests
+- [-] refactor to make testing more intuitive
 
 ### BRANCH PROTOBUF
 ---
