@@ -48,7 +48,7 @@
 
 ---
 
-- [-] start to add unit tests / doc tests + integration testing
+- [ ] start to add unit tests / doc tests + integration testing
 - [ ] cache queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap
@@ -72,18 +72,18 @@
 
 ### BRANCH QUERY-CACHING (will come some time... need to come up with a good cache eviction solution)
 ---
-- [-] Query caching (stashed changes for now)
+- [ ] Query caching (stashed changes for now)
 - [ ] Cache bust on write to table
 - [ ] Cache eviction rules setup
 
 ### BRANCH TESTING
 ---
-- [-] unit tests where applicable
+- [ ] unit tests where applicable
     - [ ] doc tests
-- [-] integration tests
-- [-] refactor to make testing more intuitive
+- [ ] integration tests
+- [ ] refactor to make testing more intuitive
 
-### BRANCH PROTOBUF
+### BRANCH PROTOBUF (merged)
 ---
 - [x] add support for proto files
 - [x] replace old model structs with prost protobuf generated types
