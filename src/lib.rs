@@ -5,16 +5,17 @@ pub mod web;
 #[allow(non_snake_case)]
 #[cfg(test)]
 pub mod web_util {
+    use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
     use mockall::predicate;
 
     use crate::{
         core::{
-            error::{SerfError, UndefinedError},
+            error::{HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError},
             serf_proto::{claims::Dat, Claims, Iss, MigrationRequest, QueryRequest, Sub},
         },
         web::{
             proto::ProtoPackage,
-            util::{get_proto_package_result, MockRequestHandler},
+            util::{get_header_value, get_proto_package_result, MockRequestHandler},
         },
     };
 
@@ -171,5 +172,111 @@ pub mod web_util {
             result.expect_err("Should be UndefinedError"),
             UndefinedError::default()
         );
+    }
+
+    #[test]
+    fn test_header_value__get_success() {
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("test"),
+            HeaderValue::from_str("test_val").unwrap(),
+        );
+
+        let header_val = get_header_value(headers.get("test"));
+        let expected_header_val = "test_val";
+
+        assert!(header_val.is_ok());
+        assert_eq!(header_val.unwrap(), expected_header_val);
+    }
+
+    #[test]
+    fn test_header_value__get_header_missing_error() {
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("test"),
+            HeaderValue::from_str("test_val").unwrap(),
+        );
+
+        let header_val = get_header_value(headers.get("not_test"));
+
+        assert!(header_val.is_err());
+        assert_eq!(
+            header_val.expect_err("Should be HeaderMissingError"),
+            HeaderMissingError::default()
+        );
+    }
+
+    #[test]
+    fn test_header_value__get_header_malformed_error() {
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("test"),
+            HeaderValue::from_str("malförmed").unwrap(),
+        );
+
+        let header_val = get_header_value(headers.get("test"));
+
+        assert!(header_val.is_err());
+        assert_eq!(
+            header_val.expect_err("Should be HeaderMalformedError"),
+            HeaderMalformedError::default()
+        );
+    }
+}
+
+#[allow(non_snake_case)]
+#[cfg(test)]
+pub mod web_proto {
+    use std::any::{Any, TypeId};
+
+    use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
+    use hmac::digest::typenum::assert_type_eq;
+    use mockall::predicate;
+    use prost::Message;
+
+    use crate::{
+        core::{
+            error::{HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError},
+            serf_proto::{claims::Dat, Claims, Iss, MigrationRequest, QueryRequest, Request, Sub},
+        },
+        web::{
+            proto::ProtoPackage,
+            util::{get_header_value, get_proto_package_result, MockRequestHandler},
+        },
+    };
+
+    #[test]
+    fn test_proto_package_builder__build_proto_package() {
+        let query_request_dat =
+            QueryRequest::as_dat("SELECT * FROM test_data_table;".to_string(), vec![]);
+
+        let expected_issuer = Iss::Server;
+        let expected_subject = Sub::Fetch;
+
+        let secret = "test_hash";
+        let proto_package = ProtoPackage::builder()
+            .with_data(query_request_dat.clone())
+            .with_subject(Sub::Fetch)
+            .sign(secret);
+        
+        assert!(proto_package.is_ok());
+
+        let proto_package_data = proto_package.unwrap().data;
+        let decoded_proto_package = Request::decode(&mut &proto_package_data[..]);
+        assert!(decoded_proto_package.is_ok());
+        
+        let decoded_claims =  decoded_proto_package.unwrap().claims;
+        assert!(decoded_claims.is_some());
+
+        let unwrapped_claims = decoded_claims.unwrap();
+        assert_eq!(unwrapped_claims.iss(), expected_issuer);
+        assert_eq!(unwrapped_claims.sub(), expected_subject);
+        assert_eq!(unwrapped_claims.iat.type_id(), 0u64.type_id());
+        assert_eq!(unwrapped_claims.exp.type_id(), 0u64.type_id());
+        assert_eq!(unwrapped_claims.exp, unwrapped_claims.iat + 30);
+
+        let decoded_dat = unwrapped_claims.dat;
+        assert!(decoded_dat.is_some());
+        assert_eq!(decoded_dat.unwrap(), query_request_dat);
     }
 }

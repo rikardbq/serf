@@ -212,7 +212,7 @@ pub async fn get_proto_package_result<'a, T: RequestHandler>(
     }
 }
 
-fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, Error> {
+pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, Error> {
     match header {
         Some(hdr) => match hdr.to_str() {
             Ok(hdr_val) => Ok(hdr_val),
