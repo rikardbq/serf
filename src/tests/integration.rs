@@ -349,6 +349,7 @@ pub mod web_util {
                 "id": 1,
                 "im_data": "test_value1",
                 "im_data_too": "test_value2",
+                "im_data_aswell": 123
             }
         ]);
         let expected_result_proto_package = encode_proto(
@@ -459,10 +460,12 @@ pub mod web_util {
         );
 
         let query_request_dat = QueryRequest::as_dat(
-            "INSERT INTO test_data_table(im_data, im_data_too) VALUES(?, ?);".to_string(),
+            "INSERT INTO test_data_table(im_data, im_data_too, im_data_aswell) VALUES(?, ?, ?);"
+                .to_string(),
             vec![
                 QueryArg::new(query_arg::Value::String("value1".to_string())),
                 QueryArg::new(query_arg::Value::String("value2".to_string())),
+                QueryArg::new(query_arg::Value::Int(123)),
             ],
         );
 
