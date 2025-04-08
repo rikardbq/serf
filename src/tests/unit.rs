@@ -1,9 +1,13 @@
+#[allow(non_snake_case)]
 #[cfg(test)]
 pub mod web_util {
     use mockall::predicate;
 
     use crate::{
-        core::serf_proto::{claims::Dat, Claims, Iss, MigrationRequest, QueryRequest, Sub},
+        core::{
+            error::{SerfError, UndefinedError},
+            serf_proto::{claims::Dat, Claims, Iss, MigrationRequest, QueryRequest, Sub},
+        },
         web::{
             proto::ProtoPackage,
             util::{get_proto_package_result, MockRequestHandler},
@@ -11,7 +15,7 @@ pub mod web_util {
     };
 
     #[tokio::test]
-    async fn test_get_proto_package_result_calls_handle_fetch() {
+    async fn test_get_proto_package_result__calls_handle_fetch() {
         let mut mock_handler = MockRequestHandler::new();
         let expected_proto_package = ProtoPackage {
             data: vec![1, 2, 3],
@@ -47,7 +51,7 @@ pub mod web_util {
     }
 
     #[tokio::test]
-    async fn test_get_proto_package_result_calls_handle_mutate() {
+    async fn test_get_proto_package_result__calls_handle_mutate() {
         let mut mock_handler = MockRequestHandler::new();
         let expected_proto_package = ProtoPackage {
             data: vec![1, 2, 3],
@@ -83,7 +87,7 @@ pub mod web_util {
     }
 
     #[tokio::test]
-    async fn test_get_proto_package_result_calls_handle_migrate() {
+    async fn test_get_proto_package_result__calls_handle_migrate() {
         let mut mock_handler = MockRequestHandler::new();
         let expected_proto_package = ProtoPackage {
             data: vec![1, 2, 3],
@@ -116,5 +120,52 @@ pub mod web_util {
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), expected_proto_package);
+    }
+
+    #[tokio::test]
+    async fn test_get_proto_package_result__query_request_handle_incorrect_subject() {
+        let mut mock_handler = MockRequestHandler::new();
+
+        mock_handler.expect_handle_fetch().times(0);
+        mock_handler.expect_handle_mutate().times(0);
+
+        let claims = Claims {
+            iss: Iss::Client.into(),
+            iat: 1,
+            exp: 2,
+            sub: Sub::Migrate.into(),
+            dat: Some(Dat::QueryRequest(QueryRequest::default())),
+        };
+
+        let result = get_proto_package_result(claims, &mock_handler).await;
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.expect_err("Should be UndefinedError"),
+            UndefinedError::default()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_proto_package_result__migration_request_handle_incorrect_subject() {
+        let mut mock_handler = MockRequestHandler::new();
+
+        mock_handler.expect_handle_migrate().times(0);
+
+        let claims = Claims {
+            iss: Iss::Client.into(),
+            iat: 1,
+            exp: 2,
+            sub: Sub::Fetch.into(),
+            dat: Some(Dat::MigrationRequest(MigrationRequest::default())),
+        };
+
+        let result = get_proto_package_result(claims, &mock_handler).await;
+
+        assert!(result.is_err());
+        assert_eq!(
+            result.expect_err("Should be UndefinedError"),
+            UndefinedError::default()
+        );
     }
 }
