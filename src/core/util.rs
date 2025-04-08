@@ -23,6 +23,11 @@ use super::{
     state::User,
 };
 
+///
+/// ```
+/// let x = 5;
+/// assert!(x == 5);
+/// ```
 pub async fn get_or_insert_db_connection<'a>(
     db_connections_guard: &'a impl Guard,
     data: &'a web::Data<AppState>,

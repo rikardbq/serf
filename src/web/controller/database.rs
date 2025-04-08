@@ -9,7 +9,9 @@ use crate::{
     },
     web::{
         proto::{decode_proto, encode_error_proto},
-        util::{extract_headers, get_proto_package_result, HttpProtoResponse},
+        util::{
+            extract_headers, get_proto_package_result, HttpProtoResponse, ProtoPackageResultHandler,
+        },
     },
 };
 
@@ -66,9 +68,11 @@ async fn handle_db_post(
 
     let proto_package = match get_proto_package_result(
         claims,
-        user.get_access_right(&db_name),
-        &user.username_password_hash,
-        &db,
+        &ProtoPackageResultHandler::new(
+            user.get_access_right(&db_name),
+            &user.username_password_hash,
+            &db,
+        ),
     )
     .await
     {
@@ -136,9 +140,11 @@ async fn handle_db_migration_post(
 
     let proto_package = match get_proto_package_result(
         claims,
-        user.get_access_right(&db_name),
-        &user.username_password_hash,
-        &db,
+        &ProtoPackageResultHandler::new(
+            user.get_access_right(&db_name),
+            &user.username_password_hash,
+            &db,
+        ),
     )
     .await
     {

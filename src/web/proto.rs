@@ -50,6 +50,7 @@ impl MigrationResponse {
     }
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub struct ProtoPackage {
     pub data: Vec<u8>,
     pub signature: String,
