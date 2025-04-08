@@ -1,6 +1,6 @@
 use serf::{
     core::{
-        error::{SerfError, UndefinedError, UserNotAllowedError},
+        error::{DatabaseError, SerfError, UserNotAllowedError},
         serf_proto::{
             query_arg, Claims, FetchResponse, Iss, MigrationRequest, MigrationResponse,
             MutationResponse, QueryArg, QueryRequest, Sub,
@@ -64,7 +64,6 @@ async fn setup_test_db() -> SqlitePool {
 
     db
 }
-
 
 // USER ACCESS LEVEL
 #[allow(non_snake_case)]
@@ -260,8 +259,8 @@ async fn test_handle_migrate__migration_fail_migration_already_exists() {
 
     assert!(result_2.is_err());
     assert_eq!(
-        result_2.expect_err("Should be UndefinedError"),
-        UndefinedError::with_message("UNIQUE constraint failed: __migrations_tracker_t__.name")
+        result_2.expect_err("Should be DatabaseError"),
+        DatabaseError::with_message("UNIQUE constraint failed: __migrations_tracker_t__.name")
     );
     assert!(db_content_2.is_ok());
     assert!(migration_table_content_2.is_ok());
@@ -406,8 +405,8 @@ async fn test_handle_fetch__fetch_data_fail() {
 
     assert!(result.is_err());
     assert_eq!(
-        result.expect_err("Should be UndefinedError"),
-        UndefinedError::with_message("no such column: non_existing_col")
+        result.expect_err("Should be DatabaseError"),
+        DatabaseError::with_message("no such column: non_existing_col")
     );
 }
 // FETCH END
@@ -570,8 +569,8 @@ async fn test_handle_mutate__mutate_data_insert_entry_unknown_col_fail() {
 
     assert!(result.is_err());
     assert_eq!(
-        result.expect_err("Should be UndefinedError"),
-        UndefinedError::with_message("table test_data_table has no column named im_data_yo")
+        result.expect_err("Should be DatabaseError"),
+        DatabaseError::with_message("table test_data_table has no column named im_data_yo")
     );
     assert!(db_content.is_ok());
     assert_eq!(db_content.unwrap().len(), 1);
@@ -609,8 +608,8 @@ async fn test_handle_mutate__mutate_data_strict_table_insert_entry_incorrect_typ
 
     assert!(result.is_err());
     assert_eq!(
-        result.expect_err("Should be UndefinedError"),
-        UndefinedError::with_message(
+        result.expect_err("Should be DatabaseError"),
+        DatabaseError::with_message(
             "cannot store TEXT value in INTEGER column strict_test_data_table.im_data_aswell"
         )
     );
