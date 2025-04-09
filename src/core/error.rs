@@ -4,13 +4,13 @@ use std::fmt;
 use super::serf_proto::{Error, ErrorKind};
 
 pub const UNDEFINED: &str = "Undefined server error";
-pub const DATABASE_ERROR: &str = "Database responded with error";
+pub const DATABASE: &str = "Database responded with error";
 pub const USER_NOT_EXIST: &str = "User doesn't exist";
 pub const USER_NOT_ALLOWED: &str = "User privilege too low";
 pub const HEADER_MISSING: &str = "Request is missing a required header";
 pub const HEADER_MALFORMED: &str = "Request header value is malformed";
 pub const RESOURCE_NOT_EXIST: &str = "Resource doesn't exist";
-pub const PROTOPACKAGE_ERROR: &str = "Proto package verification or signing error";
+pub const PROTOPACKAGE: &str = "Proto package verification or signing error";
 
 pub trait SerfError<'a> {
     fn default() -> Error;
@@ -47,11 +47,11 @@ impl<'a> SerfError<'a> for UndefinedError {
 
 impl<'a> SerfError<'a> for DatabaseError {
     fn default() -> Error {
-        Error::new(DATABASE_ERROR, ErrorKind::DatabaseError)
+        Error::new(DATABASE, ErrorKind::Database)
     }
 
     fn with_message(message: &'a str) -> Error {
-        Error::new(message, ErrorKind::DatabaseError)
+        Error::new(message, ErrorKind::Database)
     }
 }
 
@@ -107,20 +107,20 @@ impl<'a> SerfError<'a> for ResourceNotExistError {
 
 impl<'a> SerfError<'a> for ProtoPackageError {
     fn default() -> Error {
-        Error::new(PROTOPACKAGE_ERROR, ErrorKind::ProtoPackageError)
+        Error::new(PROTOPACKAGE, ErrorKind::ProtoPackage)
     }
 
     fn with_message(message: &'a str) -> Error {
-        Error::new(message, ErrorKind::ProtoPackageError)
+        Error::new(message, ErrorKind::ProtoPackage)
     }
 }
 
 impl ProtoPackageError {
     pub fn signing_error(message: &str) -> Error {
-        Error::new(&format!("{}: {}", "SIGN", message), ErrorKind::ProtoPackageError)
+        ProtoPackageError::with_message(&format!("{}: {}", "SIGN", message))
     }
     pub fn verification_error(message: &str) -> Error {
-        Error::new(&format!("{}: {}", "VERIFY", message), ErrorKind::ProtoPackageError)
+        ProtoPackageError::with_message(&format!("{}: {}", "VERIFY", message))
     }
 }
 
