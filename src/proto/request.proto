@@ -26,6 +26,7 @@ enum ErrorKind {
     HeaderMissing = 4;
     HeaderMalformed = 5;
     ResourceNotExist = 6;
+    ProtoPackageError = 7;
 }
 
 message Error {

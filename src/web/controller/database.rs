@@ -2,7 +2,6 @@ use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
     core::{
-        error::{SerfError, UndefinedError},
         serf_proto::{ErrorKind, Request},
         state::AppState,
         util::get_or_insert_db_connection,
@@ -41,22 +40,19 @@ async fn handle_db_post(
         }
     };
 
-    let decoded_proto: Request = decode_proto(
+    let decoded_proto: Request = match decode_proto(
         req_body.iter().as_slice(),
         &user.username_password_hash,
         header_proto_signature,
-    );
-
-    let claims = match decoded_proto.claims {
-        Some(c) => c,
-        None => {
-            return HttpResponse::InternalServerError().protobuf(encode_error_proto(
-                UndefinedError::default(),
-                &user.username_password_hash,
-            ));
+    ) {
+        Ok(decoded) => decoded,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .protobuf(encode_error_proto(e, &user.username_password_hash));
         }
     };
 
+    let claims = decoded_proto.claims.unwrap();
     let db_connections_guard = data.db_connections_guard();
     let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
         Ok(conn) => conn,
@@ -113,22 +109,19 @@ async fn handle_db_migration_post(
         }
     };
 
-    let decoded_proto: Request = decode_proto(
+    let decoded_proto: Request = match decode_proto(
         req_body.iter().as_slice(),
         &user.username_password_hash,
         header_proto_signature,
-    );
-
-    let claims = match decoded_proto.claims {
-        Some(c) => c,
-        None => {
-            return HttpResponse::InternalServerError().protobuf(encode_error_proto(
-                UndefinedError::default(),
-                &user.username_password_hash,
-            ));
+    ) {
+        Ok(decoded) => decoded,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .protobuf(encode_error_proto(e, &user.username_password_hash));
         }
     };
 
+    let claims = decoded_proto.claims.unwrap();
     let db_connections_guard = data.db_connections_guard();
     let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
         Ok(conn) => conn,

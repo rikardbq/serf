@@ -10,6 +10,7 @@ pub const USER_NOT_ALLOWED: &str = "User privilege too low";
 pub const HEADER_MISSING: &str = "Request is missing a required header";
 pub const HEADER_MALFORMED: &str = "Request header value is malformed";
 pub const RESOURCE_NOT_EXIST: &str = "Resource doesn't exist";
+pub const PROTOPACKAGE_ERROR: &str = "Proto package verification or signing error";
 
 pub trait SerfError<'a> {
     fn default() -> Error;
@@ -23,6 +24,7 @@ pub struct UserNotAllowedError;
 pub struct HeaderMissingError;
 pub struct HeaderMalformedError;
 pub struct ResourceNotExistError;
+pub struct ProtoPackageError;
 
 impl Error {
     pub fn new(message: &str, kind: ErrorKind) -> Self {
@@ -100,6 +102,25 @@ impl<'a> SerfError<'a> for ResourceNotExistError {
 
     fn with_message(message: &'a str) -> Error {
         Error::new(message, ErrorKind::ResourceNotExist)
+    }
+}
+
+impl<'a> SerfError<'a> for ProtoPackageError {
+    fn default() -> Error {
+        Error::new(PROTOPACKAGE_ERROR, ErrorKind::ProtoPackageError)
+    }
+
+    fn with_message(message: &'a str) -> Error {
+        Error::new(message, ErrorKind::ProtoPackageError)
+    }
+}
+
+impl ProtoPackageError {
+    pub fn signing_error(message: &str) -> Error {
+        Error::new(&format!("{}: {}", "SIGN", message), ErrorKind::ProtoPackageError)
+    }
+    pub fn verification_error(message: &str) -> Error {
+        Error::new(&format!("{}: {}", "VERIFY", message), ErrorKind::ProtoPackageError)
     }
 }
 
