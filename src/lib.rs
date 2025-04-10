@@ -235,26 +235,17 @@ pub mod web_util {
 #[allow(non_snake_case)]
 #[cfg(test)]
 pub mod web_proto {
-    use std::any::{Any, TypeId};
+    use std::any::Any;
 
-    use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
-    use hmac::digest::typenum::assert_type_eq;
-    use mockall::predicate;
     use prost::Message;
 
     use crate::{
         core::{
-            error::{
-                HeaderMalformedError, HeaderMissingError, ProtoPackageError, SerfError,
-                UndefinedError,
-            },
-            serf_proto::{claims::Dat, Claims, Iss, MigrationRequest, QueryRequest, Request, Sub},
-        }, test_consts, web::{
-            proto::{
-                generate_signature, ProtoPackage, ProtoPackageVerifier, ProtoPackageVerifierBuilder,
-            },
-            util::{get_header_value, get_proto_package_result, MockRequestHandler},
-        }
+            error::ProtoPackageError,
+            serf_proto::{Claims, Iss, QueryRequest, Request, Sub},
+        },
+        test_consts,
+        web::proto::{generate_signature, ProtoPackage, ProtoPackageVerifier},
     };
 
     #[test]
@@ -648,17 +639,17 @@ pub mod web_proto {
             expected_error
         );
     }
-    
+
     #[test]
     fn test_generate_signature__ensure_same() {
         // HMAC<SHA256> with secret: "test_secret"
         let expected_signature = "ae02cd09103fd99c64802e1be1a50376d802a3ae99caf49c1cdd4ab6b6ee050f";
-        
-        let data: [u8; 8] = [1,2,3,4,5,6,7,8];
+
+        let data: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
         let secret = "test_secret";
         let signature1 = generate_signature(&data, secret.as_bytes());
         let signature2 = generate_signature(&data, secret.as_bytes());
-        
+
         assert_eq!(signature1, expected_signature);
         assert_eq!(signature2, expected_signature);
     }
