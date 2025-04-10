@@ -2,6 +2,10 @@ pub mod cli;
 pub mod core;
 pub mod web;
 
+pub mod test_consts {
+    pub const TEST_NOW_TIMESTAMP: u64 = 1744233323;
+}
+
 #[allow(non_snake_case)]
 #[cfg(test)]
 pub mod web_util {
@@ -21,12 +25,12 @@ pub mod web_util {
 
     #[tokio::test]
     async fn test_get_proto_package_result__calls_handle_fetch() {
-        let mut mock_handler = MockRequestHandler::new();
         let expected_proto_package = ProtoPackage {
             data: vec![1, 2, 3],
             signature: "any".to_string(),
         };
 
+        let mut mock_handler = MockRequestHandler::new();
         mock_handler
             .expect_handle_fetch()
             .times(1)
@@ -57,12 +61,12 @@ pub mod web_util {
 
     #[tokio::test]
     async fn test_get_proto_package_result__calls_handle_mutate() {
-        let mut mock_handler = MockRequestHandler::new();
         let expected_proto_package = ProtoPackage {
             data: vec![1, 2, 3],
             signature: "any".to_string(),
         };
 
+        let mut mock_handler = MockRequestHandler::new();
         mock_handler
             .expect_handle_mutate()
             .times(1)
@@ -93,12 +97,12 @@ pub mod web_util {
 
     #[tokio::test]
     async fn test_get_proto_package_result__calls_handle_migrate() {
-        let mut mock_handler = MockRequestHandler::new();
         let expected_proto_package = ProtoPackage {
             data: vec![1, 2, 3],
             signature: "any".to_string(),
         };
 
+        let mut mock_handler = MockRequestHandler::new();
         mock_handler
             .expect_handle_migrate()
             .times(1)
@@ -129,8 +133,9 @@ pub mod web_util {
 
     #[tokio::test]
     async fn test_get_proto_package_result__query_request_handle_incorrect_subject() {
-        let mut mock_handler = MockRequestHandler::new();
+        let expected_error = UndefinedError::default();
 
+        let mut mock_handler = MockRequestHandler::new();
         mock_handler.expect_handle_fetch().times(0);
         mock_handler.expect_handle_mutate().times(0);
 
@@ -147,14 +152,15 @@ pub mod web_util {
         assert!(result.is_err());
         assert_eq!(
             result.expect_err("Should be UndefinedError"),
-            UndefinedError::default()
+            expected_error
         );
     }
 
     #[tokio::test]
     async fn test_get_proto_package_result__migration_request_handle_incorrect_subject() {
-        let mut mock_handler = MockRequestHandler::new();
+        let expected_error = UndefinedError::default();
 
+        let mut mock_handler = MockRequestHandler::new();
         mock_handler.expect_handle_migrate().times(0);
 
         let claims = Claims {
@@ -170,20 +176,20 @@ pub mod web_util {
         assert!(result.is_err());
         assert_eq!(
             result.expect_err("Should be UndefinedError"),
-            UndefinedError::default()
+            expected_error
         );
     }
 
     #[test]
     fn test_header_value__get_success() {
+        let expected_header_val = "test_val";
+
         let mut headers = HeaderMap::new();
         headers.append(
             HeaderName::from_static("test"),
             HeaderValue::from_str("test_val").unwrap(),
         );
-
         let header_val = get_header_value(headers.get("test"));
-        let expected_header_val = "test_val";
 
         assert!(header_val.is_ok());
         assert_eq!(header_val.unwrap(), expected_header_val);
@@ -191,35 +197,37 @@ pub mod web_util {
 
     #[test]
     fn test_header_value__get_header_missing_error() {
+        let expected_error = HeaderMissingError::default();
+
         let mut headers = HeaderMap::new();
         headers.append(
             HeaderName::from_static("test"),
             HeaderValue::from_str("test_val").unwrap(),
         );
-
         let header_val = get_header_value(headers.get("not_test"));
 
         assert!(header_val.is_err());
         assert_eq!(
             header_val.expect_err("Should be HeaderMissingError"),
-            HeaderMissingError::default()
+            expected_error
         );
     }
 
     #[test]
     fn test_header_value__get_header_malformed_error() {
+        let expected_error = HeaderMalformedError::default();
+
         let mut headers = HeaderMap::new();
         headers.append(
             HeaderName::from_static("test"),
             HeaderValue::from_str("malförmed").unwrap(),
         );
-
         let header_val = get_header_value(headers.get("test"));
 
         assert!(header_val.is_err());
         assert_eq!(
             header_val.expect_err("Should be HeaderMalformedError"),
-            HeaderMalformedError::default()
+            expected_error
         );
     }
 }
@@ -236,22 +244,25 @@ pub mod web_proto {
 
     use crate::{
         core::{
-            error::{HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError},
+            error::{
+                HeaderMalformedError, HeaderMissingError, ProtoPackageError, SerfError,
+                UndefinedError,
+            },
             serf_proto::{claims::Dat, Claims, Iss, MigrationRequest, QueryRequest, Request, Sub},
-        },
-        web::{
-            proto::{ProtoPackage, ProtoPackageVerifier, ProtoPackageVerifierBuilder},
+        }, test_consts, web::{
+            proto::{
+                generate_signature, ProtoPackage, ProtoPackageVerifier, ProtoPackageVerifierBuilder,
+            },
             util::{get_header_value, get_proto_package_result, MockRequestHandler},
-        },
+        }
     };
 
     #[test]
-    fn test_proto_package_builder__build_proto_package() {
-        let query_request_dat =
-            QueryRequest::as_dat("SELECT * FROM test_data_table;".to_string(), vec![]);
-
+    fn test_proto_package_builder__build_proto_package_success() {
         let expected_issuer = Iss::Server;
         let expected_subject = Sub::Fetch;
+        let query_request_dat =
+            QueryRequest::as_dat("SELECT * FROM test_data_table;".to_string(), vec![]);
 
         let secret = "test_hash";
         let proto_package_res = ProtoPackage::builder()
@@ -281,24 +292,59 @@ pub mod web_proto {
     }
 
     #[test]
-    fn test_proto_package_verifier_builder__verify_proto_package() {
+    fn test_proto_package_builder__build_proto_package_fail_missing_subject() {
+        let expected_error = ProtoPackageError::signing_error("missing subject");
+        let query_request_dat =
+            QueryRequest::as_dat("SELECT * FROM test_data_table;".to_string(), vec![]);
+
+        let secret = "test_hash";
+        let proto_package_res = ProtoPackage::builder()
+            .with_data(query_request_dat.clone())
+            .sign(secret);
+
+        assert!(proto_package_res.is_err());
+        assert_eq!(
+            proto_package_res.expect_err("Should be ProtoPackageError::SIGN"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_builder__build_proto_package_fail_missing_data() {
+        let expected_error = ProtoPackageError::signing_error("missing data");
+
+        let secret = "test_hash";
+        let subject = Sub::Fetch;
+        let proto_package_res = ProtoPackage::builder().with_subject(subject).sign(secret);
+
+        assert!(proto_package_res.is_err());
+        assert_eq!(
+            proto_package_res.expect_err("Should be ProtoPackageError::SIGN"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_success() {
+        let expected_issuer = Iss::Server;
+        let expected_subject = Sub::Fetch;
         let expected_query_request_dat =
             QueryRequest::as_dat("SELECT * FROM test_data_table;".to_string(), vec![]);
 
-        let expected_issuer = Iss::Server;
-        let expected_subject = Sub::Fetch;
-        let expected_signature = "b96deb8fed7f9c0335b7c5ffa65697e5042ef0af87a8494c284e234424a9bab9";
-
-        let secret = "test_hash";
         let proto_package_data: [u8; 52] = [
             10, 50, 8, 1, 16, 1, 42, 32, 10, 30, 83, 69, 76, 69, 67, 84, 32, 42, 32, 70, 82, 79,
             77, 32, 116, 101, 115, 116, 95, 100, 97, 116, 97, 95, 116, 97, 98, 108, 101, 59, 64,
             235, 198, 219, 191, 6, 72, 137, 199, 219, 191, 6,
         ];
+
+        let secret = "test_hash";
+        let issuer = Iss::Server;
+        let signature = "b96deb8fed7f9c0335b7c5ffa65697e5042ef0af87a8494c284e234424a9bab9";
         let request_res = ProtoPackageVerifier::builder()
-            .with_issuer(Iss::Server)
+            .with_issuer(issuer)
             .with_secret(secret)
-            .with_signature(expected_signature)
+            .with_signature(signature)
+            .TEST_with_now_timestamp(test_consts::TEST_NOW_TIMESTAMP)
             .build()
             .verify(&proto_package_data);
 
@@ -312,4 +358,318 @@ pub mod web_proto {
         assert_eq!(request_claims.exp, request_claims.iat + 30);
         assert_eq!(request_claims.dat.unwrap(), expected_query_request_dat);
     }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_fail_invalid_signature() {
+        let expected_error = ProtoPackageError::verification_error("invalid signature");
+
+        let proto_package_data: [u8; 52] = [
+            10, 50, 8, 1, 16, 1, 42, 32, 10, 30, 83, 69, 76, 69, 67, 84, 32, 42, 32, 70, 82, 79,
+            77, 32, 116, 101, 115, 116, 95, 100, 97, 116, 97, 95, 116, 97, 98, 108, 101, 59, 64,
+            235, 198, 219, 191, 6, 72, 137, 199, 219, 191, 6,
+        ];
+
+        let secret = "test_hash";
+        let issuer = Iss::Server;
+        let signature = "c96deb8fed7f9c0335b7c5ffa65697e5042ef0af87a8494c284e234424a9bab9";
+        let request_res = ProtoPackageVerifier::builder()
+            .with_issuer(issuer)
+            .with_secret(secret)
+            .with_signature(signature)
+            .TEST_with_now_timestamp(test_consts::TEST_NOW_TIMESTAMP)
+            .build()
+            .verify(&proto_package_data);
+
+        assert!(request_res.is_err());
+        assert_eq!(
+            request_res.expect_err("Should be ProtoPackageError::VERIFY"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_fail_missing_signature() {
+        let expected_error = ProtoPackageError::verification_error("missing signature");
+
+        let proto_package_data: [u8; 52] = [
+            10, 50, 8, 1, 16, 1, 42, 32, 10, 30, 83, 69, 76, 69, 67, 84, 32, 42, 32, 70, 82, 79,
+            77, 32, 116, 101, 115, 116, 95, 100, 97, 116, 97, 95, 116, 97, 98, 108, 101, 59, 64,
+            235, 198, 219, 191, 6, 72, 137, 199, 219, 191, 6,
+        ];
+
+        let secret = "test_hash";
+        let issuer = Iss::Server;
+        let request_res = ProtoPackageVerifier::builder()
+            .with_issuer(issuer)
+            .with_secret(secret)
+            .TEST_with_now_timestamp(test_consts::TEST_NOW_TIMESTAMP)
+            .build()
+            .verify(&proto_package_data);
+
+        assert!(request_res.is_err());
+        assert_eq!(
+            request_res.expect_err("Should be ProtoPackagerError::VERIFY"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_fail_missing_secret() {
+        let expected_error = ProtoPackageError::verification_error("missing secret");
+
+        let proto_package_data: [u8; 52] = [
+            10, 50, 8, 1, 16, 1, 42, 32, 10, 30, 83, 69, 76, 69, 67, 84, 32, 42, 32, 70, 82, 79,
+            77, 32, 116, 101, 115, 116, 95, 100, 97, 116, 97, 95, 116, 97, 98, 108, 101, 59, 64,
+            235, 198, 219, 191, 6, 72, 137, 199, 219, 191, 6,
+        ];
+
+        let issuer = Iss::Server;
+        let signature = "b96deb8fed7f9c0335b7c5ffa65697e5042ef0af87a8494c284e234424a9bab9";
+        let request_res = ProtoPackageVerifier::builder()
+            .with_issuer(issuer)
+            .with_signature(signature)
+            .TEST_with_now_timestamp(test_consts::TEST_NOW_TIMESTAMP)
+            .build()
+            .verify(&proto_package_data);
+
+        assert!(request_res.is_err());
+        assert_eq!(
+            request_res.expect_err("Should be ProtoPackagerError::VERIFY"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_fail_invalid_claims_subject() {
+        let expected_error = ProtoPackageError::verification_error("invalid claims subject");
+
+        let query_request_dat =
+            QueryRequest::as_dat("SELECT * FROM test_data_table;".to_string(), vec![]);
+
+        let claims_subject = -1;
+        let claims_issuer = Iss::Server;
+        let claims = Claims {
+            iss: claims_issuer.into(),
+            sub: claims_subject,
+            dat: Some(query_request_dat),
+            iat: test_consts::TEST_NOW_TIMESTAMP,
+            exp: test_consts::TEST_NOW_TIMESTAMP + 30,
+        };
+        let request = Request {
+            claims: Some(claims),
+            error: None,
+        };
+
+        let mut buf = Vec::new();
+        buf.reserve(request.encoded_len());
+
+        let encode_res = request.encode(&mut buf);
+        assert!(encode_res.is_ok());
+
+        let secret = "test_hash";
+        let issuer = Iss::Server;
+        let signature = "e6e2506fe1721756369a852aad91da065602585733d911001dea60405e689fce";
+        let request_res = ProtoPackageVerifier::builder()
+            .with_issuer(issuer)
+            .with_secret(secret)
+            .with_signature(&signature)
+            .TEST_with_now_timestamp(test_consts::TEST_NOW_TIMESTAMP)
+            .build()
+            .verify(&buf);
+
+        assert!(request_res.is_err());
+        assert_eq!(
+            request_res.expect_err("Should be ProtoPackageError::VERIFY"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_fail_invalid_claims_issuer() {
+        let expected_error = ProtoPackageError::verification_error("invalid claims issuer");
+
+        let query_request_dat =
+            QueryRequest::as_dat("SELECT * FROM test_data_table;".to_string(), vec![]);
+
+        let claims_subject = Sub::Fetch;
+        let claims_issuer = Iss::Client;
+        let claims = Claims {
+            iss: claims_issuer.into(),
+            sub: claims_subject.into(),
+            dat: Some(query_request_dat),
+            iat: test_consts::TEST_NOW_TIMESTAMP,
+            exp: test_consts::TEST_NOW_TIMESTAMP + 30,
+        };
+        let request = Request {
+            claims: Some(claims),
+            error: None,
+        };
+
+        let mut buf = Vec::new();
+        buf.reserve(request.encoded_len());
+
+        let encode_res = request.encode(&mut buf);
+        assert!(encode_res.is_ok());
+
+        let secret = "test_hash";
+        let issuer = Iss::Server;
+        let signature = "e89c1194876ab3d2432362bd10192698eda080bab128f1759cd08e00bcd025b0";
+        let request_res = ProtoPackageVerifier::builder()
+            .with_issuer(issuer)
+            .with_secret(secret)
+            .with_signature(&signature)
+            .TEST_with_now_timestamp(test_consts::TEST_NOW_TIMESTAMP)
+            .build()
+            .verify(&buf);
+
+        assert!(request_res.is_err());
+        assert_eq!(
+            request_res.expect_err("Should be ProtoPackageError::VERIFY"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_fail_missing_claims_data() {
+        let expected_error = ProtoPackageError::verification_error("missing claims data");
+
+        let claims_subject = Sub::Fetch;
+        let claims_issuer = Iss::Server;
+        let claims = Claims {
+            iss: claims_issuer.into(),
+            sub: claims_subject.into(),
+            dat: None,
+            iat: test_consts::TEST_NOW_TIMESTAMP,
+            exp: test_consts::TEST_NOW_TIMESTAMP + 30,
+        };
+        let request = Request {
+            claims: Some(claims),
+            error: None,
+        };
+
+        let mut buf = Vec::new();
+        buf.reserve(request.encoded_len());
+
+        let encode_res = request.encode(&mut buf);
+        assert!(encode_res.is_ok());
+
+        let secret = "test_hash";
+        let issuer = Iss::Server;
+        let signature = "55675c8d58c09f486b079e9136e3039014e3725d457fdc5f0992dc7ca99cf1f0";
+        let request_res = ProtoPackageVerifier::builder()
+            .with_issuer(issuer)
+            .with_secret(secret)
+            .with_signature(&signature)
+            .TEST_with_now_timestamp(test_consts::TEST_NOW_TIMESTAMP)
+            .build()
+            .verify(&buf);
+
+        assert!(request_res.is_err());
+        assert_eq!(
+            request_res.expect_err("Should be ProtoPackageError::VERIFY"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_fail_claims_expired() {
+        let expected_error = ProtoPackageError::verification_error("claims expired");
+
+        let query_request_dat =
+            QueryRequest::as_dat("SELECT * FROM test_data_table;".to_string(), vec![]);
+
+        let claims_subject = Sub::Fetch;
+        let claims_issuer = Iss::Server;
+        let claims = Claims {
+            iss: claims_issuer.into(),
+            sub: claims_subject.into(),
+            dat: Some(query_request_dat),
+            iat: test_consts::TEST_NOW_TIMESTAMP - 60,
+            exp: test_consts::TEST_NOW_TIMESTAMP - 30,
+        };
+        let request = Request {
+            claims: Some(claims),
+            error: None,
+        };
+
+        let mut buf = Vec::new();
+        buf.reserve(request.encoded_len());
+
+        let encode_res = request.encode(&mut buf);
+        assert!(encode_res.is_ok());
+
+        let secret = "test_hash";
+        let issuer = Iss::Server;
+        let signature = "0e3477efad0e21df052c1a131ef9960158b22da7c156d3aa955c1ae19dd869f9";
+        let request_res = ProtoPackageVerifier::builder()
+            .with_issuer(issuer)
+            .with_secret(secret)
+            .with_signature(&signature)
+            .TEST_with_now_timestamp(test_consts::TEST_NOW_TIMESTAMP)
+            .build()
+            .verify(&buf);
+
+        assert!(request_res.is_err());
+        assert_eq!(
+            request_res.expect_err("Should be ProtoPackageError::VERIFY"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_proto_package_verifier__verify_proto_package_fail_missing_claims() {
+        let expected_error = ProtoPackageError::verification_error("missing claims");
+
+        let request = Request {
+            claims: None,
+            error: None,
+        };
+
+        let mut buf = Vec::new();
+        buf.reserve(request.encoded_len());
+
+        let encode_res = request.encode(&mut buf);
+        assert!(encode_res.is_ok());
+
+        let secret = "test_hash";
+        let issuer = Iss::Server;
+        println!("{}", generate_signature(&buf, secret.as_bytes()));
+        let signature = "70a9b9745e67688e57fc4aa03cbc514a8ea615367fc7622155d147afd1f1fcd3";
+        let request_res = ProtoPackageVerifier::builder()
+            .with_issuer(issuer)
+            .with_secret(secret)
+            .with_signature(&signature)
+            .build()
+            .verify(&buf);
+
+        assert!(request_res.is_err());
+        assert_eq!(
+            request_res.expect_err("Should be ProtoPackageError::VERIFY"),
+            expected_error
+        );
+    }
+    /*
+    } else if self.subject.is_some() {
+            if self.data.is_some() {
+                let claims = generate_claims(self.data.unwrap(), self.subject.unwrap());
+                request = Request {
+                    claims: Some(claims),
+                    error: None,
+                };
+            } else {
+                return Err(ProtoPackageError::signing_error("missing data"));
+            }
+        } else {
+            return Err(ProtoPackageError::signing_error("missing subject"));
+        }
+
+        let mut buf = Vec::new();
+        buf.reserve(request.encoded_len());
+
+        if let Err(e) = request.encode(&mut buf) {
+            eprintln!("{e}");
+            return Err(ProtoPackageError::with_message(
+                "PROTOBUF::ENCODE: request proto could not be encoded",
+            ));
+        } */
 }

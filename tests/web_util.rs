@@ -7,7 +7,7 @@ use serf::{
         },
     },
     web::{
-        proto::encode_proto,
+        proto::{encode_proto, ProtoPackage},
         util::{get_proto_package_result, ProtoPackageResultHandler},
     },
 };
@@ -203,11 +203,13 @@ async fn test_handle_migrate__migration_fail_migration_already_exists() {
     let db = setup_test_db().await;
     let username_password_hash = "test_hash";
     let result_handler = ProtoPackageResultHandler::new(2, username_password_hash, &db);
-    let expected_result_proto_package = encode_proto(
-        MigrationResponse::as_dat(true),
-        Sub::Data,
-        username_password_hash,
-    );
+    let now = chrono::Utc::now().timestamp() as u64;
+
+    let expected_result_proto_package = ProtoPackage::builder()
+        .with_data(MigrationResponse::as_dat(true))
+        .with_subject(Sub::Data)
+        .with_iat(now)
+        .sign(username_password_hash);
 
     let migration_request_dat_1 = MigrationRequest::as_dat(
         "1__add_test_col".to_string(),
@@ -216,8 +218,8 @@ async fn test_handle_migrate__migration_fail_migration_already_exists() {
 
     let claims_1 = Claims {
         iss: Iss::Client.into(),
-        iat: chrono::Utc::now().timestamp() as u64,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
+        iat: now,
+        exp: now + 30,
         sub: Sub::Migrate.into(),
         dat: Some(migration_request_dat_1),
     };
@@ -273,17 +275,19 @@ async fn test_handle_migrate__migration_fail_column_already_exists() {
     let db = setup_test_db().await;
     let username_password_hash = "test_hash";
     let result_handler = ProtoPackageResultHandler::new(2, username_password_hash, &db);
-    let expected_result_proto_package_1 = encode_proto(
-        MigrationResponse::as_dat(true),
-        Sub::Data,
-        username_password_hash,
-    );
+    let now = chrono::Utc::now().timestamp() as u64;
 
-    let expected_result_proto_package_2 = encode_proto(
-        MigrationResponse::as_dat(false),
-        Sub::Data,
-        username_password_hash,
-    );
+    let expected_result_proto_package_1 = ProtoPackage::builder()
+        .with_data(MigrationResponse::as_dat(true))
+        .with_subject(Sub::Data)
+        .with_iat(now)
+        .sign(username_password_hash);
+
+    let expected_result_proto_package_2 = ProtoPackage::builder()
+        .with_data(MigrationResponse::as_dat(false))
+        .with_subject(Sub::Data)
+        .with_iat(now)
+        .sign(username_password_hash);
 
     let migration_request_dat_1 = MigrationRequest::as_dat(
         "1__add_test_col".to_string(),
@@ -292,8 +296,8 @@ async fn test_handle_migrate__migration_fail_column_already_exists() {
 
     let claims_1 = Claims {
         iss: Iss::Client.into(),
-        iat: chrono::Utc::now().timestamp() as u64,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
+        iat: now,
+        exp: now + 30,
         sub: Sub::Migrate.into(),
         dat: Some(migration_request_dat_1),
     };
@@ -305,8 +309,8 @@ async fn test_handle_migrate__migration_fail_column_already_exists() {
 
     let claims_2 = Claims {
         iss: Iss::Client.into(),
-        iat: chrono::Utc::now().timestamp() as u64,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
+        iat: now,
+        exp: now + 30,
         sub: Sub::Migrate.into(),
         dat: Some(migration_request_dat_2),
     };
@@ -348,6 +352,7 @@ async fn test_handle_fetch__fetch_data_success() {
     let db = setup_test_db().await;
     let username_password_hash = "test_hash";
     let result_handler = ProtoPackageResultHandler::new(1, username_password_hash, &db);
+    let now = chrono::Utc::now().timestamp() as u64;
     let expected_result_json = json!([
         {
             "id": 1,
@@ -356,11 +361,14 @@ async fn test_handle_fetch__fetch_data_success() {
             "im_data_aswell": 123
         }
     ]);
-    let expected_result_proto_package = encode_proto(
-        FetchResponse::as_dat(serde_json::to_vec(&expected_result_json).unwrap()),
-        Sub::Data,
-        username_password_hash,
-    );
+
+    let expected_result_proto_package = ProtoPackage::builder()
+        .with_data(FetchResponse::as_dat(
+            serde_json::to_vec(&expected_result_json).unwrap(),
+        ))
+        .with_subject(Sub::Data)
+        .with_iat(now)
+        .sign(username_password_hash);
 
     let query_request_dat = QueryRequest::as_dat(
         "SELECT * FROM test_data_table WHERE id = ?;".to_string(),
@@ -369,8 +377,8 @@ async fn test_handle_fetch__fetch_data_success() {
 
     let claims = Claims {
         iss: Iss::Client.into(),
-        iat: chrono::Utc::now().timestamp() as u64,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
+        iat: now,
+        exp: now + 30,
         sub: Sub::Fetch.into(),
         dat: Some(query_request_dat),
     };
@@ -418,12 +426,13 @@ async fn test_handle_mutate__mutate_data_update_entry_success() {
     let db = setup_test_db().await;
     let username_password_hash = "test_hash";
     let result_handler = ProtoPackageResultHandler::new(2, username_password_hash, &db);
+    let now = chrono::Utc::now().timestamp() as u64;
 
-    let expected_result_proto_package = encode_proto(
-        MutationResponse::as_dat(1, 1),
-        Sub::Data,
-        username_password_hash,
-    );
+    let expected_result_proto_package = ProtoPackage::builder()
+        .with_data(MutationResponse::as_dat(1, 1))
+        .with_subject(Sub::Data)
+        .with_iat(now)
+        .sign(username_password_hash);
 
     let query_request_dat = QueryRequest::as_dat(
         "UPDATE test_data_table SET im_data = ? WHERE id = ?;".to_string(),
@@ -435,8 +444,8 @@ async fn test_handle_mutate__mutate_data_update_entry_success() {
 
     let claims = Claims {
         iss: Iss::Client.into(),
-        iat: chrono::Utc::now().timestamp() as u64,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
+        iat: now,
+        exp: now + 30,
         sub: Sub::Mutate.into(),
         dat: Some(query_request_dat),
     };
@@ -459,12 +468,13 @@ async fn test_handle_mutate__mutate_data_insert_entry_success() {
     let db = setup_test_db().await;
     let username_password_hash = "test_hash";
     let result_handler = ProtoPackageResultHandler::new(2, username_password_hash, &db);
+    let now = chrono::Utc::now().timestamp() as u64;
 
-    let expected_result_proto_package = encode_proto(
-        MutationResponse::as_dat(1, 2),
-        Sub::Data,
-        username_password_hash,
-    );
+    let expected_result_proto_package = ProtoPackage::builder()
+        .with_data(MutationResponse::as_dat(1, 2))
+        .with_subject(Sub::Data)
+        .with_iat(now)
+        .sign(username_password_hash);
 
     let query_request_dat = QueryRequest::as_dat(
         "INSERT INTO test_data_table(im_data, im_data_too, im_data_aswell) VALUES(?, ?, ?);"
@@ -478,8 +488,8 @@ async fn test_handle_mutate__mutate_data_insert_entry_success() {
 
     let claims = Claims {
         iss: Iss::Client.into(),
-        iat: chrono::Utc::now().timestamp() as u64,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
+        iat: now,
+        exp: now + 30,
         sub: Sub::Mutate.into(),
         dat: Some(query_request_dat),
     };
@@ -501,12 +511,13 @@ async fn test_handle_mutate__mutate_data_non_strict_table_insert_entry_success()
     let db = setup_test_db().await;
     let username_password_hash = "test_hash";
     let result_handler = ProtoPackageResultHandler::new(2, username_password_hash, &db);
+    let now = chrono::Utc::now().timestamp() as u64;
 
-    let expected_result_proto_package = encode_proto(
-        MutationResponse::as_dat(1, 2),
-        Sub::Data,
-        username_password_hash,
-    );
+    let expected_result_proto_package = ProtoPackage::builder()
+        .with_data(MutationResponse::as_dat(1, 2))
+        .with_subject(Sub::Data)
+        .with_iat(now)
+        .sign(username_password_hash);
 
     let query_request_dat = QueryRequest::as_dat(
         "INSERT INTO test_data_table(im_data, im_data_too, im_data_aswell) VALUES(?, ?, ?);"
@@ -520,8 +531,8 @@ async fn test_handle_mutate__mutate_data_non_strict_table_insert_entry_success()
 
     let claims = Claims {
         iss: Iss::Client.into(),
-        iat: chrono::Utc::now().timestamp() as u64,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
+        iat: now,
+        exp: now + 30,
         sub: Sub::Mutate.into(),
         dat: Some(query_request_dat),
     };

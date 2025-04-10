@@ -119,6 +119,7 @@ impl ProtoPackageError {
     pub fn signing_error(message: &str) -> Error {
         ProtoPackageError::with_message(&format!("{}: {}", "SIGN", message))
     }
+    
     pub fn verification_error(message: &str) -> Error {
         ProtoPackageError::with_message(&format!("{}: {}", "VERIFY", message))
     }

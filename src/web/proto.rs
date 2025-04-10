@@ -69,6 +69,8 @@ impl ProtoPackage {
 pub struct ProtoPackageBuilder {
     data: Option<Dat>,
     subject: Option<Sub>,
+    iat: Option<u64>,
+    exp: Option<u64>,
     error: Option<Error>,
 }
 
@@ -77,6 +79,8 @@ impl ProtoPackageBuilder {
         ProtoPackageBuilder {
             data: None,
             subject: None,
+            iat: None,
+            exp: None,
             error: None,
         }
     }
@@ -102,6 +106,20 @@ impl ProtoPackageBuilder {
         }
     }
 
+    pub fn with_iat(self, iat: u64) -> Self {
+        ProtoPackageBuilder {
+            iat: Some(iat),
+            ..self
+        }
+    }
+
+    pub fn with_exp(self, exp: u64) -> Self {
+        ProtoPackageBuilder {
+            exp: Some(exp),
+            ..self
+        }
+    }
+
     // ToDo: Fix this to maybe be a little cleaner. Quick solution for now
     pub fn sign(self, secret: &str) -> Result<ProtoPackage, Error> {
         let request: Request;
@@ -113,7 +131,17 @@ impl ProtoPackageBuilder {
             }
         } else if self.subject.is_some() {
             if self.data.is_some() {
-                let claims = generate_claims(self.data.unwrap(), self.subject.unwrap());
+                let iat = match self.iat {
+                    Some(t) => t,
+                    _ => chrono::Utc::now().timestamp() as u64,
+                };
+                
+                let exp = match self.exp {
+                    Some(t) => t,
+                    _ => iat + 30,
+                };
+
+                let claims = generate_claims(self.data.unwrap(), self.subject.unwrap(), iat, exp);
                 request = Request {
                     claims: Some(claims),
                     error: None,
@@ -146,6 +174,7 @@ pub struct ProtoPackageVerifier<'a> {
     secret: Option<&'a str>,
     // subject: Option<Sub>,
     issuer: Option<Iss>,
+    now: Option<u64>,
 }
 
 impl<'a> ProtoPackageVerifier<'a> {
@@ -154,12 +183,14 @@ impl<'a> ProtoPackageVerifier<'a> {
         secret: Option<&'a str>,
         // subject: Option<Sub>,
         issuer: Option<Iss>,
+        now: Option<u64>,
     ) -> Self {
         ProtoPackageVerifier {
             signature,
             secret,
             // subject,
             issuer,
+            now,
         }
     }
 
@@ -190,7 +221,7 @@ impl<'a> ProtoPackageVerifier<'a> {
         };
 
         if let Some(claims) = &decoded.claims {
-            if claims.sub == -1 {
+            if !Sub::is_valid(claims.sub) {
                 return Err(ProtoPackageError::verification_error(
                     "invalid claims subject",
                 ));
@@ -208,7 +239,11 @@ impl<'a> ProtoPackageVerifier<'a> {
                 return Err(ProtoPackageError::verification_error("missing claims data"));
             }
 
-            let now = chrono::Utc::now().timestamp() as u64;
+            let now = match self.now {
+                Some(n) => n,
+                _ => chrono::Utc::now().timestamp() as u64,
+            };
+
             if now > claims.exp {
                 return Err(ProtoPackageError::verification_error("claims expired"));
             }
@@ -229,6 +264,7 @@ pub struct ProtoPackageVerifierBuilder<'a> {
     secret: Option<&'a str>,
     // subject: Option<Sub>,
     issuer: Option<Iss>,
+    now: Option<u64>,
 }
 
 impl<'a> ProtoPackageVerifierBuilder<'a> {
@@ -238,6 +274,7 @@ impl<'a> ProtoPackageVerifierBuilder<'a> {
             secret: None,
             // subject: None,
             issuer: None,
+            now: None,
         }
     }
 
@@ -269,8 +306,17 @@ impl<'a> ProtoPackageVerifierBuilder<'a> {
         }
     }
 
+    #[allow(non_snake_case)]
+    #[cfg(test)]
+    pub fn TEST_with_now_timestamp(self, now: u64) -> Self {
+        ProtoPackageVerifierBuilder {
+            now: Some(now),
+            ..self
+        }
+    }
+
     pub fn build(self) -> ProtoPackageVerifier<'a> {
-        ProtoPackageVerifier::new(self.signature, self.secret, self.issuer)
+        ProtoPackageVerifier::new(self.signature, self.secret, self.issuer, self.now)
     }
 }
 
@@ -278,7 +324,7 @@ fn verify_signature(data: &[u8], signature: &str, secret: &[u8]) -> bool {
     signature == generate_signature(data, secret)
 }
 
-fn generate_signature(data: &[u8], secret: &[u8]) -> String {
+pub fn generate_signature(data: &[u8], secret: &[u8]) -> String {
     let mut mac = match Hmac::<Sha256>::new_from_slice(&secret) {
         Ok(m) => m,
         Err(_) => panic!("ERROR DURING SIGNING"),
@@ -291,13 +337,13 @@ fn generate_signature(data: &[u8], secret: &[u8]) -> String {
     base16ct::lower::encode_string(&result_bytes)
 }
 
-fn generate_claims(data: Dat, subject: Sub) -> Claims {
+fn generate_claims(data: Dat, subject: Sub, iat: u64, exp: u64) -> Claims {
     Claims {
         iss: Iss::Server.into(),
         sub: subject.into(),
         dat: Some(data),
-        iat: chrono::Utc::now().timestamp() as u64,
-        exp: (chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
+        iat,
+        exp, //(chrono::Utc::now() + chrono::Duration::seconds(30)).timestamp() as u64,
     }
 }
 
