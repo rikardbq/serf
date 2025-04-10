@@ -648,28 +648,18 @@ pub mod web_proto {
             expected_error
         );
     }
-    /*
-    } else if self.subject.is_some() {
-            if self.data.is_some() {
-                let claims = generate_claims(self.data.unwrap(), self.subject.unwrap());
-                request = Request {
-                    claims: Some(claims),
-                    error: None,
-                };
-            } else {
-                return Err(ProtoPackageError::signing_error("missing data"));
-            }
-        } else {
-            return Err(ProtoPackageError::signing_error("missing subject"));
-        }
-
-        let mut buf = Vec::new();
-        buf.reserve(request.encoded_len());
-
-        if let Err(e) = request.encode(&mut buf) {
-            eprintln!("{e}");
-            return Err(ProtoPackageError::with_message(
-                "PROTOBUF::ENCODE: request proto could not be encoded",
-            ));
-        } */
+    
+    #[test]
+    fn test_generate_signature__ensure_same() {
+        // HMAC<SHA256> with secret: "test_secret"
+        let expected_signature = "ae02cd09103fd99c64802e1be1a50376d802a3ae99caf49c1cdd4ab6b6ee050f";
+        
+        let data: [u8; 8] = [1,2,3,4,5,6,7,8];
+        let secret = "test_secret";
+        let signature1 = generate_signature(&data, secret.as_bytes());
+        let signature2 = generate_signature(&data, secret.as_bytes());
+        
+        assert_eq!(signature1, expected_signature);
+        assert_eq!(signature2, expected_signature);
+    }
 }
