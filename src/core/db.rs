@@ -7,8 +7,8 @@ use sqlx::{Database, Sqlite, SqlitePool, TypeInfo};
 use crate::core::serf_proto::{query_arg, QueryArg};
 
 pub struct AppliedQuery<'a> {
-    query: &'a str,
-    args: Option<&'a [QueryArg]>,
+    pub query: &'a str,
+    pub args: Option<&'a [QueryArg]>,
 }
 
 impl<'a> AppliedQuery<'a> {
@@ -43,8 +43,7 @@ where
     apply_query(sqlx::query(q.query), q.args).execute(db).await
 }
 
-// parts of this will need to be re-written as part of the protobuf implementation
-fn apply_query<'q>(
+pub fn apply_query<'q>(
     query: Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>>,
     args: Option<&'q [QueryArg]>,
 ) -> Query<'q, Sqlite, <Sqlite as Database>::Arguments<'q>> {
@@ -77,7 +76,7 @@ where
         .map_or_else(|_| json!(null), JsonValue::from)
 }
 
-fn map_sqliterow_col_to_json_value<'a>(
+pub fn map_sqliterow_col_to_json_value<'a>(
     row: &'a SqliteRow,
     col_name: &'a str,
     type_info: &'a str,
