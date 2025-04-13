@@ -10,7 +10,8 @@ use crate::core::{
     constants::queries,
     db::{execute_query, fetch_all_as_json, AppliedQuery},
     error::{
-        DatabaseError, HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError, UserNotAllowedError
+        DatabaseError, HeaderMalformedError, HeaderMissingError, SerfError, UndefinedError,
+        UserNotAllowedError,
     },
     serf_proto::{
         claims::Dat, query_arg, Claims, Error, FetchResponse, MigrationRequest, MigrationResponse,
@@ -194,10 +195,13 @@ impl<'a> RequestHandler<ProtoPackage> for ProtoPackageResultHandler<'a> {
     }
 }
 
-pub async fn get_proto_package_result<'a, T: RequestHandler>(
+pub async fn get_proto_package_result<'a, T>(
     claims: Claims,
     handler: &'a T,
-) -> Result<ProtoPackage, Error> {
+) -> Result<ProtoPackage, Error>
+where
+    T: RequestHandler,
+{
     match &claims.dat {
         Some(Dat::MigrationRequest(dat)) => match claims.sub() {
             Sub::Migrate => handler.handle_migrate(dat).await,

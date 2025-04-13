@@ -24,7 +24,13 @@ impl<'a> AppliedQuery<'a> {
     }
 }
 
-async fn fetch_query<'a>(
+/// #### Does a sqlx fetch_all call which returns an awaitable Future
+/// \
+/// __*@param*__ q: AppliedQuery<'a> \
+/// __*@param*__ db: &'a SqlitePool \
+/// \
+/// __*@returns*__ Result\<Vec\<sqlx::sqlite::SqliteRow\>, sqlx::error::Error\>
+pub async fn fetch_query<'a>(
     q: AppliedQuery<'a>,
     db: &'a SqlitePool,
 ) -> Result<Vec<SqliteRow>, sqlx::error::Error> {
