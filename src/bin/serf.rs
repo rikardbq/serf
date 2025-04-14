@@ -53,6 +53,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(app_data.clone())
             .configure(serf::web::controller::init_db_controller)
+            .configure(serf::web::controller::init_health_controller)
     })
     .bind((HOST, port))
     .unwrap()

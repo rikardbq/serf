@@ -2,6 +2,7 @@ use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
     core::{
+        error::{SerfError, UserNotExistError},
         serf_proto::{ErrorKind, Request},
         state::AppState,
         util::get_or_insert_db_connection,
@@ -34,9 +35,9 @@ async fn handle_db_post(
     let db_name = path.into_inner();
     let users_guard = data.users_guard();
     let user = match data.get_user(header_username_hash, &users_guard) {
-        Ok(val) => val,
-        Err(e) => {
-            return HttpResponse::Unauthorized().body(e.message);
+        Some(val) => val,
+        None => {
+            return HttpResponse::Unauthorized().body(UserNotExistError::default().message);
         }
     };
 
@@ -54,7 +55,7 @@ async fn handle_db_post(
 
     let claims = decoded_proto.claims.unwrap();
     let db_connections_guard = data.db_connections_guard();
-    let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
+    let db = match get_or_insert_db_connection(&data, &db_name, &db_connections_guard).await {
         Ok(conn) => conn,
         Err(e) => {
             return HttpResponse::NotFound()
@@ -103,9 +104,9 @@ async fn handle_db_migration_post(
     let db_name = path.into_inner();
     let users_guard = data.users_guard();
     let user = match data.get_user(header_username_hash, &users_guard) {
-        Ok(val) => val,
-        Err(e) => {
-            return HttpResponse::Unauthorized().body(e.message);
+        Some(val) => val,
+        None => {
+            return HttpResponse::Unauthorized().body(UserNotExistError::default().message);
         }
     };
 
@@ -123,7 +124,7 @@ async fn handle_db_migration_post(
 
     let claims = decoded_proto.claims.unwrap();
     let db_connections_guard = data.db_connections_guard();
-    let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
+    let db = match get_or_insert_db_connection(&data, &db_name, &db_connections_guard).await {
         Ok(conn) => conn,
         Err(e) => {
             return HttpResponse::NotFound()

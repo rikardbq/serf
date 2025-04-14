@@ -14,46 +14,65 @@ use serde_json::Value as JsonValue;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
 
-use super::state::AppState;
 use super::{
     constants::queries,
     db::{fetch_all_as_json, AppliedQuery},
     error::{ResourceNotExistError, SerfError},
     serf_proto::Error,
-    state::User,
+    state::{AppState, User},
 };
 
+pub async fn create_db_connection(
+    connection_string: &str,
+    max_connections: u32,
+    max_idle_time: u64,
+) -> Result<SqlitePool, Error> {
+    match SqlitePoolOptions::new()
+        .max_connections(max_connections)
+        .idle_timeout(Duration::from_secs(max_idle_time))
+        .connect(connection_string)
+        .await
+    {
+        Ok(pool) => Ok(pool),
+        Err(_) => Err(ResourceNotExistError::with_message(
+            "Database does not exist",
+        )),
+    }
+}
+
 pub async fn get_or_insert_db_connection<'a>(
-    db_connections_guard: &'a impl Guard,
     data: &'a web::Data<AppState>,
     db_name: &'a str,
+    db_connections_guard: &'a impl Guard,
 ) -> Result<&'a SqlitePool, Error> {
-    let db_connections: Arc<papaya::HashMap<Arc<str>, SqlitePool>> =
-        Arc::clone(&data.db_connections);
+    match data.get_db_connection(db_name, db_connections_guard) {
+        Some(connection) => Ok(connection),
+        None => {
+            // ToDo: replace with real logs some day
+            println!("Database connection not open, trying to open for {}", db_name);
 
-    if !db_connections.contains_key(db_name, db_connections_guard) {
-        println!(
-            "Database connection is not opened, trying to open database {}",
-            db_name
-        );
-        if let Ok(pool) = SqlitePoolOptions::new()
-            .max_connections(data.db_max_connections)
-            .idle_timeout(Duration::from_secs(data.db_max_idle_time))
-            .connect(&format!(
-                "sqlite:{}/{}/{}.db",
-                data.db_path, db_name, db_name
-            ))
+            match create_db_connection(
+                &format!("sqlite:{}/{}/{}.db", data.db_path, db_name, db_name),
+                data.db_max_connections,
+                data.db_max_idle_time,
+            )
             .await
-        {
-            db_connections.insert(Arc::from(db_name), pool, db_connections_guard);
-        } else {
-            return Err(ResourceNotExistError::with_message(
-                "Database doesn't exist",
-            ));
+            {
+                Ok(conn) => {
+                    // ToDo: replace with real logs some day
+                    println!("Database connection opened for {}", db_name);
+                    data.insert_db_connection(&db_name, conn, db_connections_guard);
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            };
+
+            Ok(data
+                .get_db_connection(&db_name, db_connections_guard)
+                .unwrap())
         }
     }
-
-    Ok(db_connections.get(db_name, db_connections_guard).unwrap())
 }
 
 pub async fn get_db_users(user_db: &str) -> Result<JsonValue, sqlx::error::Error> {
