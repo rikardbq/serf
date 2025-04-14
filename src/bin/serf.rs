@@ -44,13 +44,16 @@ async fn main() -> std::io::Result<()> {
         db_path: String::from(consumer_db_path.to_str().unwrap()),
     });
     let app_data_c = app_data.clone();
-    let db_users = get_db_users(&user_db).await;
-    populate_app_state_users(db_users, &app_data);
+    match get_db_users(&user_db).await {
+        Ok(val) => populate_app_state_users(val, &app_data),
+        Err(e) => panic!("{e}"),
+    };
 
     let srv = HttpServer::new(move || {
         App::new()
             .app_data(app_data.clone())
             .configure(serf::web::controller::init_db_controller)
+            .configure(serf::web::controller::init_health_controller)
     })
     .bind((HOST, port))
     .unwrap()

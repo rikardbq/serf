@@ -14,57 +14,74 @@ use serde_json::Value as JsonValue;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
 
-use super::state::AppState;
 use super::{
     constants::queries,
     db::{fetch_all_as_json, AppliedQuery},
-    error::{DatabaseNotExistError, SerfError},
+    error::{ResourceNotExistError, SerfError},
     serf_proto::Error,
-    state::User,
+    state::{AppState, User},
 };
 
-pub async fn get_or_insert_db_connection<'a>(
-    db_connections_guard: &'a impl Guard,
-    data: &'a web::Data<AppState>,
-    db_name: &'a str,
-) -> Result<&'a SqlitePool, Error> {
-    let db_connections: Arc<papaya::HashMap<Arc<str>, SqlitePool>> =
-        Arc::clone(&data.db_connections);
-
-    if !db_connections.contains_key(db_name, db_connections_guard) {
-        println!(
-            "Database connection is not opened, trying to open database {}",
-            db_name
-        );
-        if let Ok(pool) = SqlitePoolOptions::new()
-            .max_connections(data.db_max_connections)
-            .idle_timeout(Duration::from_secs(data.db_max_idle_time))
-            .connect(&format!(
-                "sqlite:{}/{}/{}.db",
-                data.db_path, db_name, db_name
-            ))
-            .await
-        {
-            db_connections.insert(Arc::from(db_name), pool, db_connections_guard);
-        } else {
-            return Err(DatabaseNotExistError::default());
-        }
+pub async fn create_db_connection(
+    connection_string: &str,
+    max_connections: u32,
+    max_idle_time: u64,
+) -> Result<SqlitePool, Error> {
+    match SqlitePoolOptions::new()
+        .max_connections(max_connections)
+        .idle_timeout(Duration::from_secs(max_idle_time))
+        .connect(connection_string)
+        .await
+    {
+        Ok(pool) => Ok(pool),
+        Err(_) => Err(ResourceNotExistError::with_message(
+            "Database does not exist",
+        )),
     }
-
-    Ok(db_connections.get(db_name, db_connections_guard).unwrap())
 }
 
-pub async fn get_db_users(user_db: &str) -> JsonValue {
-    let pool = SqlitePool::connect(&format!("sqlite:{}", user_db))
-        .await
-        .unwrap();
-    let users = fetch_all_as_json(AppliedQuery::new(queries::GET_USERS_AND_ACCESS), &pool)
-        .await
-        .unwrap();
+pub async fn get_or_insert_db_connection<'a>(
+    data: &'a web::Data<AppState>,
+    db_name: &'a str,
+    db_connections_guard: &'a impl Guard,
+) -> Result<&'a SqlitePool, Error> {
+    match data.get_db_connection(db_name, db_connections_guard) {
+        Some(connection) => Ok(connection),
+        None => {
+            // ToDo: replace with real logs some day
+            println!("Database connection not open, trying to open for {}", db_name);
+
+            match create_db_connection(
+                &format!("sqlite:{}/{}/{}.db", data.db_path, db_name, db_name),
+                data.db_max_connections,
+                data.db_max_idle_time,
+            )
+            .await
+            {
+                Ok(conn) => {
+                    // ToDo: replace with real logs some day
+                    println!("Database connection opened for {}", db_name);
+                    data.insert_db_connection(&db_name, conn, db_connections_guard);
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            };
+
+            Ok(data
+                .get_db_connection(&db_name, db_connections_guard)
+                .unwrap())
+        }
+    }
+}
+
+pub async fn get_db_users(user_db: &str) -> Result<JsonValue, sqlx::error::Error> {
+    let pool = SqlitePool::connect(&format!("sqlite:{}", user_db)).await?;
+    let users = fetch_all_as_json(AppliedQuery::new(queries::GET_USERS_AND_ACCESS), &pool).await?;
 
     pool.close().await;
 
-    users
+    Ok(users)
 }
 
 pub fn populate_app_state_users(db_users: JsonValue, app_data: &web::Data<AppState>) {
@@ -75,9 +92,8 @@ pub fn populate_app_state_users(db_users: JsonValue, app_data: &web::Data<AppSta
         app_state_users_pin.clear();
     }
 
-    // TODO: FIX THIS
-    if db_users.is_array() {
-        db_users.as_array().unwrap().iter().for_each(|x| {
+    if let Some(arr) = db_users.as_array() {
+        arr.iter().for_each(|x| {
             let user: User = serde_json::from_value(x.clone()).unwrap();
             let databases = x.get("databases").unwrap();
             let db_access_rights = HashMap::new();
@@ -105,34 +121,6 @@ pub fn populate_app_state_users(db_users: JsonValue, app_data: &web::Data<AppSta
             );
         });
     }
-
-    // db_users_vec.iter().for_each(|x| {
-    //     let user: User = serde_json::from_value(x.clone()).unwrap();
-    //     let databases = x.get("databases").unwrap();
-    //     let db_access_rights = HashMap::new();
-    //     let db_access_rights_pin = db_access_rights.pin();
-
-    //     if databases.is_array() {
-    //         databases.as_array().unwrap().iter().for_each(|obj| {
-    //             serde_json::from_value::<std::collections::HashMap<String, u8>>(obj.clone())
-    //                 .unwrap()
-    //                 .iter()
-    //                 .for_each(|(k, v)| {
-    //                     db_access_rights_pin.insert(k.clone(), *v);
-    //                 });
-    //         });
-    //     }
-
-    //     app_state_users_pin.insert(
-    //         user.username_hash.clone(),
-    //         User {
-    //             username: user.username,
-    //             username_hash: user.username_hash,
-    //             username_password_hash: user.username_password_hash,
-    //             db_access_rights: db_access_rights.clone(),
-    //         },
-    //     );
-    // });
 }
 
 fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
@@ -163,11 +151,13 @@ pub async fn async_watch(
     while let Some(res) = rx.next().await {
         match res {
             Ok(ev) => {
-                let db_users = get_db_users(&file_path_string).await;
-                populate_app_state_users(db_users, &app_data);
-                println!("{ev:?}")
+                println!("{ev:?}");
+                match get_db_users(&file_path_string).await {
+                    Ok(val) => populate_app_state_users(val, &app_data),
+                    Err(e) => eprintln!("watch error: {:?}", e),
+                };
             }
-            Err(e) => println!("watch error: {:?}", e),
+            Err(e) => eprintln!("watch error: {:?}", e),
         }
     }
 

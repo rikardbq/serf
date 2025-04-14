@@ -2,20 +2,28 @@
 - [x] fix the query function to allow more generic argument lists / partial application of query params
 - [x] Handle different types of calls, I.E inserts vs fetches, etc (pass a subject in the token?)
 - [x] Add web controllers in web lib
+
+---
+
 - [x] setup rest endpoints for actual use
-    - [x] "{database}" more or less done
-    - [x] "{database}/m" (for running migrations)
-        - use special table for book keeping of migrations. "dbName.<table>" as "dbName.\_\_migrations_tracker_t\_\_"
-        - versioning can be determined with chrono crate I.E datetime where 20241126180330 is YYYYmmddHHMMSS format
-        - migrations will be of similar type as mutation requests
-        - consumer side will bundle together all migrations that are still not applied
-        - expectation at migration endpoint is that there are possibly many queries to be applied
+- [x] "{database}" more or less done
+- [x] "{database}/m" (for running migrations)
+    - use special table for book keeping of migrations. "dbName.\<table\>" as "dbName.\_\_migrations_tracker_t\_\_
+    - migrations will be of similar type as mutation requests
+    - consumer side will bundle together all migrations that are still not applied
+    - expectation at migration endpoint is that there are possibly many queries to be applied
+
+---
+
 - [x] start work on the CLI for adding users to user management db
-    - [x] basic idea is to manage users with add, remove, modify commands (may have to use some library to manage sub-commanding)
+    - basic idea is to manage users with add, remove, modify commands (may have to use some library to manage sub-commanding)
     - same pattern would apply for managing DB's and user access to DB's (not final)
         - ```sqlite_server_cli add user -u rikardbq -p somepass```
         - ```sqlite_server_cli remove user -u rikardbq```
         - ```sqlite_server_cli modify user chpass -u rikardbq -op oldpass -np newpass```
+
+---
+
 - [x] root_dir=$HOME/.serf/ or %APPDATA_LOCAL%/.serf/ depending on architecture built on
     - consumer_db_path=$root_dir/db/{hashed_db_name}/
         - 1 folder per db to better namespace them on the filesystem since SQLite adds a bunch of meta files when manipulating the DB
@@ -24,17 +32,25 @@
         - defaults(arch dependent) in build scripts
             - [x] win: %APPDATA%\.serf
             - [x] unix: $HOME/.serf
-    - folders will be created and populated with necessary files
+        - folders will be created and populated with necessary files
+
+---
+
 - [x] install scripts for unix / win
 - [x] use transactions for mutations
 - [x] change usage of name "base_query in dat claim" to "query"
 - [x] handle updates to the user management db so that the Arc handle gets the latest user hashmap
-    - use "notify" crate to listen on the db file change
-- [-] ~~use serde de/serialization for internal data types~~
-    - [] ~~implement custom papaya::HashMap serialize / deserialize trait~~
-    - [] ~~use claim kind specific data type instead of string.~~
+- [x] use "notify" crate to listen on the db file change
+- [ ] ~~use serde de/serialization for internal data types~~
+    - [ ] ~~implement custom papaya::HashMap serialize / deserialize trait~~
+    - [ ] ~~use claim kind specific data type instead of string.~~
 - [x] add protobuf support and move away from json and jwt
-- [] CACHE queries
+
+---
+
+- [x] start to add unit tests / doc tests + integration testing
+    - add more tests as I go along. Considered as added for now.
+- [ ] cache queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap
         - use base64 encoded version of the query
@@ -57,11 +73,18 @@
 
 ### BRANCH QUERY-CACHING (will come some time... need to come up with a good cache eviction solution)
 ---
-- [-] Query caching (stashed changes for now)
-- [] Cache bust on write to table
-- [] Cache eviction rules setup
+- [ ] Query caching (stashed changes for now)
+- [ ] Cache bust on write to table
+- [ ] Cache eviction rules setup
 
-### BRANCH PROTOBUF
+### BRANCH TESTING
+---
+- [x] unit tests where applicable
+    - ~~[ ] doc tests~~
+- [x] integration tests
+- [x] refactor to make testing more intuitive
+
+### BRANCH PROTOBUF (merged)
 ---
 - [x] add support for proto files
 - [x] replace old model structs with prost protobuf generated types

@@ -4,8 +4,6 @@ use papaya::{Guard, HashMap};
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
-use super::{serf_proto::Error, error::{SerfError, UserNotExistError}};
-
 pub type DatabaseConnections = Arc<HashMap<Arc<str>, SqlitePool>>;
 pub type Users = Arc<HashMap<Arc<str>, User>>;
 
@@ -31,15 +29,30 @@ impl AppState {
         &self,
         username_hash: &str,
         guard: &'guard impl Guard,
-    ) -> Result<&'guard User, Error> {
-        match Arc::clone(&self.users).get(username_hash, guard) {
-            Some(u) => Ok(u),
-            None => Err(UserNotExistError::default()),
-        }
+    ) -> Option<&'guard User> {
+        Arc::clone(&self.users).get(username_hash, guard)
+    }
+
+    pub fn get_db_connection<'guard>(
+        &self,
+        db_name: &str,
+        guard: &'guard impl Guard,
+    ) -> Option<&'guard SqlitePool> {
+        Arc::clone(&self.db_connections).get(db_name, guard)
+    }
+
+    pub fn insert_db_connection<'guard>(
+        &self,
+        db_name: &str,
+        db_connection: SqlitePool,
+        guard: &'guard impl Guard,
+    ) {
+        let db_connections: Arc<HashMap<Arc<str>, SqlitePool>> = Arc::clone(&self.db_connections);
+        db_connections.insert(Arc::from(db_name), db_connection, guard);
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize)]
 pub struct User {
     pub username: String,
     pub username_hash: String,

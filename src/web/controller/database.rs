@@ -2,14 +2,16 @@ use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
     core::{
-        error::{SerfError, UndefinedError},
+        error::{SerfError, UserNotExistError},
         serf_proto::{ErrorKind, Request},
         state::AppState,
         util::get_or_insert_db_connection,
     },
     web::{
         proto::{decode_proto, encode_error_proto},
-        util::{extract_headers, get_proto_package_result, HttpProtoResponse},
+        util::{
+            extract_headers, get_proto_package_result, HttpProtoResponse, ProtoPackageResultHandler,
+        },
     },
 };
 
@@ -33,30 +35,27 @@ async fn handle_db_post(
     let db_name = path.into_inner();
     let users_guard = data.users_guard();
     let user = match data.get_user(header_username_hash, &users_guard) {
-        Ok(val) => val,
-        Err(e) => {
-            return HttpResponse::Unauthorized().body(e.message);
+        Some(val) => val,
+        None => {
+            return HttpResponse::Unauthorized().body(UserNotExistError::default().message);
         }
     };
 
-    let decoded_proto: Request = decode_proto(
+    let decoded_proto: Request = match decode_proto(
         req_body.iter().as_slice(),
         &user.username_password_hash,
         header_proto_signature,
-    );
-
-    let claims = match decoded_proto.claims {
-        Some(c) => c,
-        None => {
-            return HttpResponse::InternalServerError().protobuf(encode_error_proto(
-                UndefinedError::default(),
-                &user.username_password_hash,
-            ));
+    ) {
+        Ok(decoded) => decoded,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .protobuf(encode_error_proto(e, &user.username_password_hash));
         }
     };
 
+    let claims = decoded_proto.claims.unwrap();
     let db_connections_guard = data.db_connections_guard();
-    let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
+    let db = match get_or_insert_db_connection(&data, &db_name, &db_connections_guard).await {
         Ok(conn) => conn,
         Err(e) => {
             return HttpResponse::NotFound()
@@ -66,9 +65,11 @@ async fn handle_db_post(
 
     let proto_package = match get_proto_package_result(
         claims,
-        user.get_access_right(&db_name),
-        &user.username_password_hash,
-        &db,
+        &ProtoPackageResultHandler::new(
+            user.get_access_right(&db_name),
+            &user.username_password_hash,
+            &db,
+        ),
     )
     .await
     {
@@ -103,30 +104,27 @@ async fn handle_db_migration_post(
     let db_name = path.into_inner();
     let users_guard = data.users_guard();
     let user = match data.get_user(header_username_hash, &users_guard) {
-        Ok(val) => val,
-        Err(e) => {
-            return HttpResponse::Unauthorized().body(e.message);
+        Some(val) => val,
+        None => {
+            return HttpResponse::Unauthorized().body(UserNotExistError::default().message);
         }
     };
 
-    let decoded_proto: Request = decode_proto(
+    let decoded_proto: Request = match decode_proto(
         req_body.iter().as_slice(),
         &user.username_password_hash,
         header_proto_signature,
-    );
-
-    let claims = match decoded_proto.claims {
-        Some(c) => c,
-        None => {
-            return HttpResponse::InternalServerError().protobuf(encode_error_proto(
-                UndefinedError::default(),
-                &user.username_password_hash,
-            ));
+    ) {
+        Ok(decoded) => decoded,
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .protobuf(encode_error_proto(e, &user.username_password_hash));
         }
     };
 
+    let claims = decoded_proto.claims.unwrap();
     let db_connections_guard = data.db_connections_guard();
-    let db = match get_or_insert_db_connection(&db_connections_guard, &data, &db_name).await {
+    let db = match get_or_insert_db_connection(&data, &db_name, &db_connections_guard).await {
         Ok(conn) => conn,
         Err(e) => {
             return HttpResponse::NotFound()
@@ -136,9 +134,11 @@ async fn handle_db_migration_post(
 
     let proto_package = match get_proto_package_result(
         claims,
-        user.get_access_right(&db_name),
-        &user.username_password_hash,
-        &db,
+        &ProtoPackageResultHandler::new(
+            user.get_access_right(&db_name),
+            &user.username_password_hash,
+            &db,
+        ),
     )
     .await
     {
