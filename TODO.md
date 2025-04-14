@@ -48,7 +48,8 @@
 
 ---
 
-- [ ] start to add unit tests / doc tests + integration testing
+- [x] start to add unit tests / doc tests + integration testing
+    - add more tests as I go along. Considered as added for now.
 - [ ] cache queries
     - spawn separate thread to handle the caching and eviction processes whenever a write / read has occured
     - use papaya concurrent hashmap
@@ -78,10 +79,10 @@
 
 ### BRANCH TESTING
 ---
-- [ ] unit tests where applicable
-    - [ ] doc tests
-- [ ] integration tests
-- [ ] refactor to make testing more intuitive
+- [x] unit tests where applicable
+    - ~~[ ] doc tests~~
+- [x] integration tests
+- [x] refactor to make testing more intuitive
 
 ### BRANCH PROTOBUF (merged)
 ---
