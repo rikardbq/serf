@@ -49,7 +49,10 @@ pub async fn get_or_insert_db_connection<'a>(
         Some(connection) => Ok(connection),
         None => {
             // ToDo: replace with real logs some day
-            println!("Database connection not open, trying to open for {}", db_name);
+            println!(
+                "Database connection not open, trying to open for {}",
+                db_name
+            );
 
             match create_db_connection(
                 &format!("sqlite:{}/{}/{}.db", data.db_path, db_name, db_name),
@@ -69,7 +72,7 @@ pub async fn get_or_insert_db_connection<'a>(
             };
 
             Ok(data
-                .get_db_connection(&db_name, db_connections_guard)
+                .get_db_connection(db_name, db_connections_guard)
                 .unwrap())
         }
     }
