@@ -27,6 +27,11 @@ pub async fn create_db_connection(
     max_connections: u32,
     max_idle_time: u64,
 ) -> Result<SqlitePool, Error> {
+    let error_msg = "Database does not exist";
+    if connection_string.contains("..") {
+        return Err(ResourceNotExistError::with_message(error_msg));
+    }
+
     match SqlitePoolOptions::new()
         .max_connections(max_connections)
         .idle_timeout(Duration::from_secs(max_idle_time))
@@ -34,9 +39,7 @@ pub async fn create_db_connection(
         .await
     {
         Ok(pool) => Ok(pool),
-        Err(_) => Err(ResourceNotExistError::with_message(
-            "Database does not exist",
-        )),
+        Err(_) => Err(ResourceNotExistError::with_message(error_msg)),
     }
 }
 

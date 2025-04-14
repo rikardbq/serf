@@ -8,4 +8,3 @@ pub const DB_NAME_FLAG: &str = "-db";
 pub const USERNAME_FLAG: &str = "-u";
 pub const PASSWORD_FLAG: &str = "-p";
 pub const ACCESS_RIGHT_FLAG: &str = "-ar";
-
