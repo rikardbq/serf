@@ -29,7 +29,7 @@ $ ./serf-cli create user -u <username> -p <password>
 ```
 
 **[ modify - user - access ]**
-- This command is used to link the user to a db together with an access right
+- This command is used to link the user to a db, together with an access right
 - Access rights are integers from 1-3:
     - Where 1 = READ, 2 = WRITE, 3 = READ+WRITE
 
@@ -57,7 +57,7 @@ The network port that the application accepts connections on.
 ```
 - db-max-conn
 ```
-Set the maximum number of connections that this pool should maintain.
+Set the maximum number of connections that a db pool should maintain.
 ```
 - db-max-idle-time
 ```
