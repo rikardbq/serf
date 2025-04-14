@@ -2,6 +2,7 @@
 #### Server to allow SQLite databases to serve its data over HTTP.
 - To interface with it see **[serf-connector-java](https://github.com/rikardbq/serf-connector-java)** for Java applications, or **[serf-connector-deno](https://github.com/rikardbq/serf-connector-deno)** for Deno Javascript applications.
 
+### ![serf master](https://github.com/rikardbq/serf/actions/workflows/rust.yml/badge.svg?branch=master)
 ---
 
 ### Usage
