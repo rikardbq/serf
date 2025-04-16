@@ -13,6 +13,7 @@ pub struct AppState {
     pub users: Users,
     pub db_max_connections: u32,
     pub db_max_idle_time: u64,
+    pub db_max_lifetime: u64,
     pub db_path: String,
 }
 

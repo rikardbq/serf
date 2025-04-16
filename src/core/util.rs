@@ -26,6 +26,7 @@ pub async fn create_db_connection(
     connection_string: &str,
     max_connections: u32,
     max_idle_time: u64,
+    max_lifetime: u64,
 ) -> Result<SqlitePool, Error> {
     let error_msg = "Database does not exist";
     if connection_string.contains("..") {
@@ -35,6 +36,7 @@ pub async fn create_db_connection(
     match SqlitePoolOptions::new()
         .max_connections(max_connections)
         .idle_timeout(Duration::from_secs(max_idle_time))
+        .max_lifetime(Duration::from_secs(max_lifetime))
         .connect(connection_string)
         .await
     {
@@ -61,6 +63,7 @@ pub async fn get_or_insert_db_connection<'a>(
                 &format!("sqlite:{}/{}/{}.db", data.db_path, db_name, db_name),
                 data.db_max_connections,
                 data.db_max_idle_time,
+                data.db_max_lifetime,
             )
             .await
             {

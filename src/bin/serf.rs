@@ -20,6 +20,7 @@ async fn main() -> std::io::Result<()> {
     let mut port = cli::DEFAULT_PORT;
     let mut db_max_conn = cli::DEFAULT_DB_MAX_CONN;
     let mut db_max_idle_time = cli::DEFAULT_DB_MAX_IDLE_TIME;
+    let mut db_max_lifetime = cli::DEFAULT_DB_MAX_LIFETIME;
 
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
@@ -28,6 +29,8 @@ async fn main() -> std::io::Result<()> {
             get_flag_val::<u32>(&args, cli::DB_MAX_CONN_FLAG).unwrap_or(cli::DEFAULT_DB_MAX_CONN);
         db_max_idle_time = get_flag_val::<u64>(&args, cli::DB_MAX_IDLE_TIME_FLAG)
             .unwrap_or(cli::DEFAULT_DB_MAX_IDLE_TIME);
+        db_max_lifetime = get_flag_val::<u64>(&args, cli::DB_MAX_LIFETIME_FLAG)
+            .unwrap_or(cli::DEFAULT_DB_MAX_LIFETIME);
     }
 
     let root_dir = Path::new(ROOT_DIR);
@@ -41,6 +44,7 @@ async fn main() -> std::io::Result<()> {
         users: Arc::new(HashMap::new()),
         db_max_connections: db_max_conn,
         db_max_idle_time,
+        db_max_lifetime,
         db_path: String::from(consumer_db_path.to_str().unwrap()),
     });
     let app_data_c = app_data.clone();

@@ -75,6 +75,7 @@ pub mod state {
             users: Arc::new(papaya::HashMap::new()),
             db_max_connections: 32,
             db_max_idle_time: 3600,
+            db_max_lifetime: 86400,
             db_path: String::from("testing_path"),
         };
         let users_guard = app_state.users_guard();
@@ -114,6 +115,7 @@ pub mod state {
             users: Arc::new(papaya::HashMap::new()),
             db_max_connections: 32,
             db_max_idle_time: 3600,
+            db_max_lifetime: 86400,
             db_path: String::from("testing_path"),
         };
         let users_guard = app_state.users_guard();
@@ -178,6 +180,7 @@ pub mod state {
             users: Arc::new(papaya::HashMap::new()),
             db_max_connections: 32,
             db_max_idle_time: 3600,
+            db_max_lifetime: 86400,
             db_path: String::from("testing_path"),
         };
         let db_connections_guard = app_state.db_connections_guard();
@@ -185,6 +188,7 @@ pub mod state {
             "sqlite::memory:",
             app_state.db_max_connections,
             app_state.db_max_idle_time,
+            app_state.db_max_lifetime,
         )
         .await;
         assert!(created_db_connection.is_ok());
@@ -204,6 +208,7 @@ pub mod state {
             users: Arc::new(papaya::HashMap::new()),
             db_max_connections: 32,
             db_max_idle_time: 3600,
+            db_max_lifetime: 86400,
             db_path: String::from("testing_path"),
         };
         let db_connections_guard = app_state.db_connections_guard();
@@ -211,6 +216,7 @@ pub mod state {
             "sqlite::memory:",
             app_state.db_max_connections,
             app_state.db_max_idle_time,
+            app_state.db_max_lifetime,
         )
         .await;
         assert!(created_db_connection.is_ok());
