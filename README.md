@@ -49,6 +49,7 @@ $ ./serf-cli modify user access -u <username> -db <db_name> -ar <access_right>
     - --port \<number\> (default value: 8080)
     - --db-max-conn \<number\> (default value: 12)
     - --db-max-idle-time \<number_in_seconds\> (default value: 3600)
+    - --db-max-lifetime \<number_in_seconds\> (default value: 86400) I.E: 1 day
 
 Flags explained:
 - port
@@ -64,8 +65,13 @@ Set the maximum number of connections that a db pool should maintain.
 Set a maximum idle duration for individual connections.
 Any connection that remains in the idle queue longer than this will be closed.
 ```
+- db-max-lifetime
+```
+Set the maximum lifetime of individual connections.
+Any connection with a lifetime greater than this will be closed.
+```
 
 Example:
 ```
-$ ./serf --port 8080 --db-max-conn 12 --db-max-idle-time 3600
+$ ./serf --port 8080 --db-max-conn 12 --db-max-idle-time 3600 --db-max-lifetime 86400
 ```
