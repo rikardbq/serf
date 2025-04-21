@@ -78,7 +78,7 @@ where
     JsonValue: std::convert::From<T>,
     T: sqlx::Type<sqlx::Sqlite> + sqlx::Decode<'b, sqlx::Sqlite>,
 {
-    row.try_get::<T, _>(col_name)
+    row.try_get_unchecked::<T, _>(col_name)
         .map_or_else(|_| json!(null), JsonValue::from)
 }
 
@@ -105,7 +105,7 @@ pub async fn fetch_all_as_json<'a>(
     let mut json_array = JsonValue::Array(vec![]);
 
     if let JsonValue::Array(ref mut arr) = json_array {
-        rows.into_iter().for_each(|row| {
+        for row in rows {
             let mut json_row = JsonMap::new();
 
             for column in row.columns() {
@@ -122,7 +122,7 @@ pub async fn fetch_all_as_json<'a>(
             }
 
             arr.push(JsonValue::Object(json_row));
-        });
+        }
     }
 
     Ok(json_array)
