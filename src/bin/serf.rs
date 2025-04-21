@@ -56,6 +56,7 @@ async fn main() -> std::io::Result<()> {
     let srv = HttpServer::new(move || {
         App::new()
             .app_data(app_data.clone())
+            .app_data(web::PayloadConfig::new(100 * 1024 * 1024))
             .configure(serf::web::controller::init_db_controller)
             .configure(serf::web::controller::init_health_controller)
     })

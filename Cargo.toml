@@ -13,22 +13,21 @@ name = "serf-cli"
 path = "src/bin/serf-cli.rs"
 
 [dependencies]
-actix-web = "4.9.0"
+actix-web = "4.10.2"
 base16ct = { version = "0.2.0", features = ["alloc"] }
-chrono = "0.4.39"
+chrono = "0.4.40"
 futures = "0.3.31"
 hmac = "0.12.1"
-jsonwebtoken = "9.3.0"
 mockall = "0.13.1"
 notify = "8.0.0"
 papaya = "0.2.1"
 prost = "0.13.5"
 regex = { version = "1.11.1", features = ["std"] }
-serde = { version = "1.0.217", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.135"
 sha2 = "0.10.8"
-sqlx = { version = "0.8.3", features = ["sqlite", "runtime-tokio", "json"] }
-tokio = { version = "1.43.0", features = ["macros", "rt", "rt-multi-thread"] }
+sqlx = { version = "0.8.5", features = ["sqlite", "runtime-tokio", "json"] }
+tokio = { version = "1.44.2", features = ["macros", "rt", "rt-multi-thread"] }
 
 [build-dependencies]
 base16ct = { version = "0.2.0", features = ["alloc"] }
