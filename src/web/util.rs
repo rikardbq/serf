@@ -227,6 +227,11 @@ pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, Error> {
 }
 
 pub fn extract_headers<'a>(req: &'a HttpRequest) -> Result<(&'a str, &'a str), Error> {
+    if let Ok(content_type) = get_header_value(req.headers().get("content-type")) {
+        if content_type != "application/protobuf" {
+            return Err(HeaderMalformedError::with_message("Content-Type not supported"));
+        }
+    }
     let header_username_hash = get_header_value(req.headers().get("0"))?;
     let header_proto_signature = get_header_value(req.headers().get("1"))?;
 
