@@ -10,7 +10,9 @@ pub mod util {
         },
         web::{
             proto::ProtoPackage,
-            util::{get_header_value, get_proto_package_result, MockRequestHandler},
+            util::{
+                extract_headers, get_header_value, get_proto_package_result, MockRequestHandler,
+            },
         },
     };
 
@@ -218,6 +220,99 @@ pub mod util {
         assert!(header_val.is_err());
         assert_eq!(
             header_val.expect_err("Should be HeaderMalformedError"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_extract_headers__extract_success() {
+        let expected_headers_tuple = ("some_value_0", "some_value_1");
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("0"),
+            HeaderValue::from_str("some_value_0").unwrap(),
+        );
+        headers.append(
+            HeaderName::from_static("1"),
+            HeaderValue::from_str("some_value_1").unwrap(),
+        );
+        headers.append(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_str("application/protobuf").unwrap(),
+        );
+        let headers_res = extract_headers(&headers);
+
+        assert!(headers_res.is_ok());
+        assert_eq!(headers_res.unwrap(), expected_headers_tuple);
+    }
+
+    #[test]
+    fn test_extract_headers__extract_missing_header_0() {
+        let expected_error = HeaderMissingError::default();
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("1"),
+            HeaderValue::from_str("some_value_1").unwrap(),
+        );
+        headers.append(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_str("application/protobuf").unwrap(),
+        );
+        let headers_res = extract_headers(&headers);
+
+        assert!(headers_res.is_err());
+        assert_eq!(
+            headers_res.expect_err("Should be HeaderMissingError"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_extract_headers__extract_missing_header_1() {
+        let expected_error = HeaderMissingError::default();
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("0"),
+            HeaderValue::from_str("some_value_0").unwrap(),
+        );
+        headers.append(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_str("application/protobuf").unwrap(),
+        );
+        let headers_res = extract_headers(&headers);
+
+        assert!(headers_res.is_err());
+        assert_eq!(
+            headers_res.expect_err("Should be HeaderMissingError"),
+            expected_error
+        );
+    }
+
+    #[test]
+    fn test_extract_headers__extract_unsupported_content_type() {
+        let expected_error = HeaderMalformedError::with_message("Content-Type not supported");
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("0"),
+            HeaderValue::from_str("some_value_0").unwrap(),
+        );
+        headers.append(
+            HeaderName::from_static("1"),
+            HeaderValue::from_str("some_value_1").unwrap(),
+        );
+        headers.append(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_str("application/json").unwrap(),
+        );
+        let headers_res = extract_headers(&headers);
+
+        assert!(headers_res.is_err());
+        assert_eq!(
+            headers_res.expect_err("Should be HeaderMalformedError"),
             expected_error
         );
     }

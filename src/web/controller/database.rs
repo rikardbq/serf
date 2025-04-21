@@ -27,7 +27,7 @@ async fn handle_db_post(
     path: web::Path<String>,
     req_body: web::Bytes,
 ) -> impl Responder {
-    let (header_username_hash, header_proto_signature) = match extract_headers(&req) {
+    let (header_username_hash, header_proto_signature) = match extract_headers(req.headers()) {
         Ok((val1, val2)) => (val1, val2),
         Err(e) => return HttpResponse::BadRequest().body(e.message),
     };
@@ -96,7 +96,7 @@ async fn handle_db_migration_post(
     path: web::Path<String>,
     req_body: web::Bytes,
 ) -> impl Responder {
-    let (header_username_hash, header_proto_signature) = match extract_headers(&req) {
+    let (header_username_hash, header_proto_signature) = match extract_headers(req.headers()) {
         Ok((val1, val2)) => (val1, val2),
         Err(e) => return HttpResponse::BadRequest().body(e.message),
     };
