@@ -1986,6 +1986,7 @@ dependencies = [
  "chrono",
  "futures",
  "hmac",
+ "mime",
  "mockall",
  "notify",
  "papaya",

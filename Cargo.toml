@@ -18,6 +18,7 @@ base16ct = { version = "0.2.0", features = ["alloc"] }
 chrono = "0.4.40"
 futures = "0.3.31"
 hmac = "0.12.1"
+mime = "0.3.17"
 mockall = "0.13.1"
 notify = "8.0.0"
 papaya = "0.2.1"

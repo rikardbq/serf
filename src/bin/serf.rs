@@ -2,7 +2,10 @@ use std::env;
 use std::path::Path;
 use std::sync::Arc;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::http::header::{ContentType, Header};
+use actix_web::web::{Payload, PayloadConfig};
+use actix_web::{web, App, HttpRequest, HttpServer};
+use mime::Mime;
 use papaya::HashMap;
 use serf::core::constants::cli;
 use serf::core::state::AppState;
@@ -56,7 +59,10 @@ async fn main() -> std::io::Result<()> {
     let srv = HttpServer::new(move || {
         App::new()
             .app_data(app_data.clone())
-            .app_data(web::PayloadConfig::new(100 * 1024 * 1024))
+            .app_data(
+                web::PayloadConfig::new(100 * 1024 * 1024)
+                    .mimetype("application/protobuf".parse::<mime::Mime>().unwrap()),
+            )
             .configure(serf::web::controller::init_db_controller)
             .configure(serf::web::controller::init_health_controller)
     })
