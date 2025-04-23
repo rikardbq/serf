@@ -229,16 +229,18 @@ pub fn get_header_value(header: Option<&HeaderValue>) -> Result<&str, Error> {
     }
 }
 
-pub fn extract_headers<'a>(headers: &'a HeaderMap) -> Result<(&'a str, &'a str), Error> {
-    if let Ok(content_type) = get_header_value(headers.get("content-type")) {
-        if content_type != "application/protobuf" {
-            return Err(HeaderMalformedError::with_message(
-                "Content-Type not supported",
-            ));
-        }
+pub fn check_content_type(content_type: &str) -> Result<(), Error> {
+    if content_type != "application/protobuf" {
+        return Err(HeaderMalformedError::with_message("Content-Type not supported"))
     }
+
+    Ok(())
+}
+
+pub fn extract_headers<'a>(headers: &'a HeaderMap) -> Result<(&'a str, &'a str, &'a str), Error> {
+    let header_content_type = get_header_value(headers.get("content-type"))?;
     let header_username_hash = get_header_value(headers.get("0"))?;
     let header_proto_signature = get_header_value(headers.get("1"))?;
 
-    Ok((header_username_hash, header_proto_signature))
+    Ok((header_content_type, header_username_hash, header_proto_signature))
 }

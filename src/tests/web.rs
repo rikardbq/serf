@@ -11,7 +11,8 @@ pub mod util {
         web::{
             proto::ProtoPackage,
             util::{
-                extract_headers, get_header_value, get_proto_package_result, MockRequestHandler,
+                check_content_type, extract_headers, get_header_value, get_proto_package_result,
+                MockRequestHandler,
             },
         },
     };
@@ -226,7 +227,7 @@ pub mod util {
 
     #[test]
     fn test_extract_headers__extract_success() {
-        let expected_headers_tuple = ("some_value_0", "some_value_1");
+        let expected_headers_tuple = ("application/protobuf", "some_value_0", "some_value_1");
 
         let mut headers = HeaderMap::new();
         headers.append(
@@ -245,6 +246,29 @@ pub mod util {
 
         assert!(headers_res.is_ok());
         assert_eq!(headers_res.unwrap(), expected_headers_tuple);
+    }
+
+    #[test]
+    fn test_extract_headers__extract_missing_content_type() {
+        let expected_error = HeaderMissingError::default();
+
+        let mut headers = HeaderMap::new();
+        headers.append(
+            HeaderName::from_static("0"),
+            HeaderValue::from_str("some_value_0").unwrap(),
+        );
+        headers.append(
+            HeaderName::from_static("1"),
+            HeaderValue::from_str("some_value_1").unwrap(),
+        );
+
+        let headers_res = extract_headers(&headers);
+
+        assert!(headers_res.is_err());
+        assert_eq!(
+            headers_res.expect_err("Should be HeaderMissingError"),
+            expected_error
+        );
     }
 
     #[test]
@@ -292,27 +316,20 @@ pub mod util {
     }
 
     #[test]
-    fn test_extract_headers__extract_unsupported_content_type() {
+    fn test_check_content_type__content_type_ok() {
+        let check_content_type_res = check_content_type("application/protobuf");
+
+        assert!(check_content_type_res.is_ok());
+    }
+
+    #[test]
+    fn test_check_content_type__content_type_err() {
         let expected_error = HeaderMalformedError::with_message("Content-Type not supported");
+        let check_content_type_res = check_content_type("application/json");
 
-        let mut headers = HeaderMap::new();
-        headers.append(
-            HeaderName::from_static("0"),
-            HeaderValue::from_str("some_value_0").unwrap(),
-        );
-        headers.append(
-            HeaderName::from_static("1"),
-            HeaderValue::from_str("some_value_1").unwrap(),
-        );
-        headers.append(
-            HeaderName::from_static("content-type"),
-            HeaderValue::from_str("application/json").unwrap(),
-        );
-        let headers_res = extract_headers(&headers);
-
-        assert!(headers_res.is_err());
+        assert!(check_content_type_res.is_err());
         assert_eq!(
-            headers_res.expect_err("Should be HeaderMalformedError"),
+            check_content_type_res.expect_err("Should be HeaderMalformedError"),
             expected_error
         );
     }

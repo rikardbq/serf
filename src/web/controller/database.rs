@@ -10,7 +10,8 @@ use crate::{
     web::{
         proto::{decode_proto, encode_error_proto},
         util::{
-            extract_headers, get_proto_package_result, HttpProtoResponse, ProtoPackageResultHandler,
+            check_content_type, extract_headers, get_proto_package_result, HttpProtoResponse,
+            ProtoPackageResultHandler,
         },
     },
 };
@@ -27,10 +28,15 @@ async fn handle_db_post(
     path: web::Path<String>,
     req_body: web::Bytes,
 ) -> impl Responder {
-    let (header_username_hash, header_proto_signature) = match extract_headers(req.headers()) {
-        Ok((val1, val2)) => (val1, val2),
-        Err(e) => return HttpResponse::BadRequest().body(e.message),
-    };
+    let (header_content_type, header_username_hash, header_proto_signature) =
+        match extract_headers(req.headers()) {
+            Ok((h1, h2, h3)) => (h1, h2, h3),
+            Err(e) => return HttpResponse::BadRequest().body(e.message),
+        };
+
+    if let Err(e) = check_content_type(header_content_type) {
+        HttpResponse::BadRequest().body(e.message);
+    }
 
     let db_name = path.into_inner();
     let users_guard = data.users_guard();
@@ -96,10 +102,15 @@ async fn handle_db_migration_post(
     path: web::Path<String>,
     req_body: web::Bytes,
 ) -> impl Responder {
-    let (header_username_hash, header_proto_signature) = match extract_headers(req.headers()) {
-        Ok((val1, val2)) => (val1, val2),
-        Err(e) => return HttpResponse::BadRequest().body(e.message),
-    };
+    let (header_content_type, header_username_hash, header_proto_signature) =
+        match extract_headers(req.headers()) {
+            Ok((h1, h2, h3)) => (h1, h2, h3),
+            Err(e) => return HttpResponse::BadRequest().body(e.message),
+        };
+
+    if let Err(e) = check_content_type(header_content_type) {
+        HttpResponse::BadRequest().body(e.message);
+    }
 
     let db_name = path.into_inner();
     let users_guard = data.users_guard();
