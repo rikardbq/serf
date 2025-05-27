@@ -35,7 +35,7 @@ async fn main() -> std::io::Result<()> {
                 match cmd_two {
                     "database" => {
                         let db = get_flag_val::<String>(&args_split, cli::DB_NAME_FLAG).unwrap();
-                        database_manager.create_database(&db).await;
+                        database_manager.create_consumer_database(&db).await;
                     }
                     "user" => {
                         let username =

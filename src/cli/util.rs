@@ -1,16 +1,21 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use regex::Regex;
 use sha2::{Digest, Sha256};
-use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
+use sqlx::{
+    migrate::MigrateDatabase,
+    sqlite::{SqliteAutoVacuum, SqliteConnectOptions, SqliteJournalMode, SqliteSynchronous},
+    Sqlite, SqlitePool,
+};
 
 use crate::core::{
     constants::queries,
     db::{execute_query, AppliedQuery},
-    serf_proto::{QueryArg, query_arg}
+    serf_proto::{query_arg, QueryArg},
 };
 
 include!(concat!(env!("OUT_DIR"), "/gen.rs"));
@@ -40,6 +45,23 @@ impl DatabaseManager {
         }
     }
 
+    pub async fn create_database(url: &str) -> Result<(), sqlx::Error> {
+        let connect_options = SqliteConnectOptions::from_str(url)?
+            .foreign_keys(true)
+            .auto_vacuum(SqliteAutoVacuum::Full)
+            .journal_mode(SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Full)
+            .optimize_on_close(true, 400)
+            .create_if_missing(true);
+
+        SqlitePool::connect_with(connect_options)
+            .await?
+            .close()
+            .await;
+
+        Ok(())
+    }
+
     pub async fn init(&self) {
         if !self.user_db_base_path.exists() {
             let _ = fs::create_dir_all(&self.user_db_base_path);
@@ -49,7 +71,7 @@ impl DatabaseManager {
             let _ = fs::create_dir_all(&self.consumer_db_base_path);
         }
 
-        match Sqlite::create_database(&self.user_db_full_path_string).await {
+        match Self::create_database(&self.user_db_full_path_string).await {
             Ok(_) => {
                 let pool =
                     SqlitePool::connect(&format!("sqlite:{}", self.user_db_full_path_string))
@@ -93,7 +115,7 @@ impl DatabaseManager {
         }
     }
 
-    pub async fn create_database(&self, db_name: &str) {
+    pub async fn create_consumer_database(&self, db_name: &str) {
         if !db_name.eq("") {
             let regex = Regex::new(r"^[a-zA-Z0-9_-]+$").unwrap();
             if !regex.is_match(db_name) {
@@ -114,7 +136,7 @@ impl DatabaseManager {
             }
 
             if !Sqlite::database_exists(&consumer_db).await.unwrap_or(false) {
-                match Sqlite::create_database(&consumer_db).await {
+                match Self::create_database(&consumer_db).await {
                     Ok(_) => {
                         println!("Successfully created db {} as {}", db_name, db_name_hash);
                         let _ = fs::write(
@@ -182,10 +204,10 @@ impl DatabaseManager {
 
             let _ = match execute_query(
                 AppliedQuery::new(queries::UPSERT_USER_DATABASE_ACCESS).with_args(&vec![
-                   QueryArg::new(query_arg::Value::String(database_name)),
-                   QueryArg::new(query_arg::Value::String(database_name_hash)),
-                   QueryArg::new(query_arg::Value::Int(access_right as i64)),
-                   QueryArg::new(query_arg::Value::String(username_hash)),
+                    QueryArg::new(query_arg::Value::String(database_name)),
+                    QueryArg::new(query_arg::Value::String(database_name_hash)),
+                    QueryArg::new(query_arg::Value::Int(access_right as i64)),
+                    QueryArg::new(query_arg::Value::String(username_hash)),
                 ]),
                 &mut *transaction,
             )
